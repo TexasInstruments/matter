@@ -24,7 +24,7 @@ class IDFExecutor:
     self.run_cmd = os.path.join(self.chip_root, "scripts", "run_in_build_env.sh")
     logging.info("Executing via: %s" % self.run_cmd)
 
-  
+
   def execute(self, command):
     os.chdir(self.chip_root)
     subprocess.call([self.run_cmd, 'source "%s/export.sh"; cd %s; idf.py %s' % (idf_path, ROOT, command)])
@@ -43,6 +43,11 @@ def main():
       default=None,
       choices=['m5stack', 'devkit'],
   )
+  parser.add_argument(
+      '--generate-flash-script',
+      action='store_true',
+  )
+
   args = parser.parse_args()
 
   # Ensures somewhat pretty logging of what is going on
@@ -67,8 +72,12 @@ def main():
 
 
   logging.info('Compiling')
+
   e.execute('build')
 
+  logging.info('Generating flash script')
+  if args.generate_flash_script:
+    e.execute('flashing_script')
 
 if __name__ == '__main__':
   # execute only if run as a script
