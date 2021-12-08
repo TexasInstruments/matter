@@ -33,6 +33,12 @@
 #include <app-common/zap-generated/cluster-id.h>
 #include <app/util/attribute-storage.h>
 
+/* OTA related includes */
+#include "OTAImageProcessor.h"
+#include "K32WOTARequestorDriver.h"
+#include "src/app/clusters/ota-requestor/BDXDownloader.h"
+#include "src/app/clusters/ota-requestor/OTARequestor.h"
+
 #include "Keyboard.h"
 #include "LED.h"
 #include "LEDWidget.h"
@@ -69,10 +75,50 @@ static uint32_t eventMask = 0;
 extern "C" void K32WUartProcess(void);
 #endif
 
+using chip::BDXDownloader;
+using chip::ByteSpan;
+using chip::CASEClientPool;
+using chip::CharSpan;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
+using chip::EndpointId;
+using chip::FabricIndex;
+using chip::GetRequestorInstance;
+using chip::OTAImageProcessor;
+using chip::NodeId;
+using chip::OnDeviceConnected;
+using chip::OnDeviceConnectionFailure;
+using chip::OperationalDeviceProxyPool;
+using chip::OTADownloader;
+using chip::OTAImageProcessorParams;
+using chip::OTARequestor;
+using chip::PeerId;
+using chip::Server;
+using chip::VendorId;
+using chip::Callback::Callback;
+using chip::System::Layer;
+using chip::Transport::PeerAddress;
+using namespace chip;
+using namespace chip::Messaging;
+using namespace chip::app::Clusters::OtaSoftwareUpdateProvider::Commands;
 
 AppTask AppTask::sAppTask;
+
+/* OTA related variables */
+constexpr size_t kMaxActiveCaseClients = 2;
+constexpr size_t kMaxActiveDevices     = 8;
+
+static uint16_t requestorSecurePort = 5560;
+static OTARequestor gRequestorCore;
+static K32WOTARequestorDriver gRequestorUser;
+static BDXDownloader gDownloader;
+static OTAImageProcessor gImageProcesor;
+static CASEClientPool<kMaxActiveCaseClients> gCASEClientPool;
+static OperationalDeviceProxyPool<kMaxActiveDevices> gDevicePool;
+
+static NodeId providerNodeId           = 0x0;
+static FabricIndex providerFabricIndex = 1;
+static uint16_t delayQueryTimeInSec    = 0;
 
 CHIP_ERROR AppTask::StartAppTask()
 {
@@ -94,7 +140,8 @@ CHIP_ERROR AppTask::Init()
     CHIP_ERROR err = CHIP_NO_ERROR;
 
     // Init ZCL Data Model and start server
-    chip::Server::GetInstance().Init();
+    chip::Server::GetInstance().Init(nullptr, requestorSecurePort);
+    ChipLogProgress(SoftwareUpdate, "Initializing the Application Server. Listening on UDP port %d", requestorSecurePort);
 
     // Initialize device attestation config
 #ifdef ENABLE_HSM_DEVICE_ATTESTATION
@@ -102,6 +149,43 @@ CHIP_ERROR AppTask::Init()
 #else
     SetDeviceAttestationCredentialsProvider(Examples::GetExampleDACProvider());
 #endif
+
+    // Initialize and interconnect the Requestor and Image Processor objects -- START
+    SetRequestorInstance(&gRequestorCore);
+
+    // Connect the Requestor and Requestor Driver objects
+    gRequestorCore.SetOtaRequestorDriver(&gRequestorUser);
+
+    // Set server instance used for session establishment
+    chip::Server * server = &(chip::Server::GetInstance());
+    server->SetCASEClientPool(&gCASEClientPool);
+    server->SetDevicePool(&gDevicePool);
+    gRequestorCore.SetServerInstance(server);
+
+    // WARNING: this is probably not realistic to know such details of the image or to even have an OTADownloader instantiated at
+    // the beginning of program execution. We're using hardcoded values here for now since this is a reference application.
+    // TODO: instatiate and initialize these values when QueryImageResponse tells us an image is available
+    // TODO: add API for OTARequestor to pass QueryImageResponse info to the application to use for OTADownloader init
+    OTAImageProcessorParams ipParams;
+    ipParams.imageFile = CharSpan("test.txt");
+    gImageProcesor.SetOTAImageProcessorParams(ipParams);
+    gImageProcesor.SetOTADownloader(&gDownloader);
+
+    // Connect the gDownloader and Image Processor objects
+    gDownloader.SetImageProcessorDelegate(&gImageProcesor);
+
+    gRequestorCore.SetBDXDownloader(&gDownloader);
+    // Initialize and interconnect the Requestor and Image Processor objects -- END
+
+    // Test Mode operation: If a delay is provided, QueryImage after the timer expires
+	if (delayQueryTimeInSec > 0)
+	{
+		// In this mode Provider node ID and fabric idx must be supplied explicitly from program args
+		gRequestorCore.TestModeSetProviderParameters(providerNodeId, providerFabricIndex);
+
+		chip::DeviceLayer::SystemLayer().StartTimer(chip::System::Clock::Milliseconds32(delayQueryTimeInSec * 1000),
+													OnStartDelayTimerHandler, nullptr);
+	}
 
     // QR code will be used with CHIP Tool
     PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
@@ -160,6 +244,12 @@ CHIP_ERROR AppTask::Init()
 #endif
 
     return err;
+}
+
+// Test mode operation
+void AppTask::OnStartDelayTimerHandler(Layer * systemLayer, void * appState)
+{
+    static_cast<OTARequestor *>(GetRequestorInstance())->TriggerImmediateQuery();
 }
 
 void AppTask::AppTaskMain(void * pvParameter)

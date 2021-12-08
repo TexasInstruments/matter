@@ -17,3 +17,5 @@ import("${chip_root}/examples/platform/nxp/k32w/k32w0/args.gni")
 
 # SDK target. This is overriden to add our SDK app_config.h & defines.
 k32w0_sdk_target = get_label_info(":sdk", "label_no_toolchain")
+
+use_default_client_callbacks = true

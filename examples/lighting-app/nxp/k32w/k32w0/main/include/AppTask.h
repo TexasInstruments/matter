@@ -77,6 +77,8 @@ private:
     static void ThreadStart();
     void StartTimer(uint32_t aTimeoutInMs);
 
+    static void OnStartDelayTimerHandler(chip::System::Layer * systemLayer, void * appState);
+
     enum Function_t
     {
         kFunction_NoneSelected   = 0,

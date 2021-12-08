@@ -34,6 +34,11 @@
 #include <platform/CHIPDeviceLayer.h>
 #include <platform/ThreadStackManager.h>
 
+#include "OTAImageProcessor.h"
+#include "K32WOTARequestorDriver.h"
+#include "src/app/clusters/ota-requestor/BDXDownloader.h"
+#include "src/app/clusters/ota-requestor/OTARequestor.h"
+
 #include "FreeRtosHooks.h"
 #include "app_config.h"
 
