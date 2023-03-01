@@ -40,15 +40,7 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
 
     if (clusterId == OnOff::Id && attributeId == OnOff::Attributes::OnOff::Id)
     {
-        PLAT_LOG("ZclCallbacks - MatterPostAttributeChangeCallback");
         LightMgr().InitiateAction(AppEvent::kEventType_Light, *value ? LightingManager::ON_ACTION : LightingManager::OFF_ACTION);
-    }
-    else if (clusterId == LevelControl::Id)
-    {
-        ChipLogProgress(Zcl, "Level Control attribute ID: " ChipLogFormatMEI " Type: %u Value: %u, length %u",
-                        ChipLogValueMEI(attributeId), type, *value, size);
-
-        // WIP Apply attribute change to Light
     }
     else if (clusterId == Identify::Id)
     {
@@ -58,11 +50,6 @@ void MatterPostAttributeChangeCallback(const chip::app::ConcreteAttributePath & 
     else if (clusterId == Groups::Id)
     {
         ChipLogProgress(Zcl, "Groups attribute ID: " ChipLogFormatMEI " Type: %u Value: %u, length %u",
-                        ChipLogValueMEI(attributeId), type, *value, size);
-    }
-    else if (clusterId == Scenes::Id)
-    {
-        ChipLogProgress(Zcl, "Scenes attribute ID: " ChipLogFormatMEI " Type: %u Value: %u, length %u",
                         ChipLogValueMEI(attributeId), type, *value, size);
     }
 }

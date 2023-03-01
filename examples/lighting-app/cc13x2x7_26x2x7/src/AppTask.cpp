@@ -71,6 +71,8 @@
 
 static uint32_t identify_trigger_effect = IDENTIFY_TRIGGER_EFFECT_FINISH_STOP;
 
+#define LIGHTING_APPLICATION_IDENTIFY_ENDPOINT 1
+
 using namespace ::chip;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceLayer;
@@ -106,7 +108,7 @@ void InitializeOTARequestor(void)
 }
 #endif
 
-::Identify stIdentify = { 1, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
+::Identify stIdentify = { LIGHTING_APPLICATION_IDENTIFY_ENDPOINT, AppTask::IdentifyStartHandler, AppTask::IdentifyStopHandler,
                           EMBER_ZCL_IDENTIFY_IDENTIFY_TYPE_VISIBLE_LED, AppTask::TriggerIdentifyEffectHandler };
 
 int AppTask::StartAppTask()
@@ -136,8 +138,6 @@ int AppTask::StartAppTask()
 void uiTurnOn(void)
 {
     PLAT_LOG("Light On initiated");
-    LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
-    LED_startBlinking(sAppGreenHandle, 50 /* ms */, LED_BLINK_FOREVER);
     LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
     LED_startBlinking(sAppRedHandle, 110 /* ms */, LED_BLINK_FOREVER);
 }
@@ -146,8 +146,6 @@ void uiTurnOn(void)
 void uiTurnedOn(void)
 {
     PLAT_LOG("Light On completed");
-    LED_stopBlinking(sAppGreenHandle);
-    LED_setOff(sAppGreenHandle);
     LED_stopBlinking(sAppRedHandle);
     LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
 }
@@ -156,8 +154,6 @@ void uiTurnedOn(void)
 void uiTurnOff(void)
 {
     PLAT_LOG("Light Off initiated");
-    LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
-    LED_startBlinking(sAppGreenHandle, 50 /* ms */, LED_BLINK_FOREVER);
     LED_setOn(sAppRedHandle, LED_BRIGHTNESS_MAX);
     LED_startBlinking(sAppRedHandle, 110 /* ms */, LED_BLINK_FOREVER);
 }
@@ -166,8 +162,6 @@ void uiTurnOff(void)
 void uiTurnedOff(void)
 {
     PLAT_LOG("Light Off completed");
-    LED_stopBlinking(sAppGreenHandle);
-    LED_setOff(sAppGreenHandle);
     LED_stopBlinking(sAppRedHandle);
     LED_setOff(sAppRedHandle);
 }
@@ -477,8 +471,6 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
             default:
                 break;
         }
-        LED_setOn(sAppGreenHandle, LED_BRIGHTNESS_MAX);
-        LED_startBlinking(sAppGreenHandle, 500, LED_BLINK_FOREVER);
         PLAT_LOG("Identify started");
         break;
 

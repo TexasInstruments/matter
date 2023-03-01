@@ -16,10 +16,6 @@ Instruments CC13XX_26XX family of Wireless MCUs.
         -   [UniFlash](#uniflash)
     -   [Viewing Logging Output](#viewing-logging-output)
     -   [Running the Example](#running-the-example)
-        -   [Provisioning](#provisioning)
-            -   [Bluetooth LE Advertising](#bluetooth-le-advertising)
-            -   [Bluetooth LE Rendezvous](#bluetooth-le-rendezvous)
-        -   [Matter Remote Commands](#matter-remote-commands)
     -   [TI Support](#ti-support)
 
 ---
@@ -38,18 +34,16 @@ Instruments devices.
 
 ## Device UI
 
-This example application has a simple User Interface to depict the state of the
-light and to control the state. The user LEDs on the LaunchPad are set on
-when the light is turned on, and are set off when the light is turned off. The LEDs will flash when
-in the transition state between on and off.
-
-Short presses (less than 1000ms) of the user buttons are used for requesting
-lock and unlock of the door lock. The left button (`BTN-1`) is used tuen the light on. The right button (`BTN-2`) is used to turn the light off.
-
-Long presses (greater than 1000ms) of the user buttons are used for controlling
-BLE advertisements and resets. The left button (`BTN-1`) is used to perform a
-factory reset of the device. The Right button (`BTN-2`) is used to disable BLE
-advertisements (if enabled) or enable advertisements (if disabled).
+| Action                                           | Functionality                          |
+| ------------------------------------------------ | -------------------------------------- |
+| Left Button (`BTN-1`) Press (less than 1000 ms)  | Light is turned on                     | 
+| Left Button (`BTN-1`) Press (more than 1000 ms)  | Factory Reset                          | 
+| Right Button (`BTN-2`) Press (less than 1000 ms) | Light is turned off                    | 
+| Right Button (`BTN-2`) Press (more than 1000 ms) | BLE Advertisement                      |  
+| Red LED Solid On State                           | Light is turned on                     | 
+| Red LED Off State                                | Light is turned off                    | 
+| Green LED Blinking State                         | Identify Trigger Effect in progress    | 
+| Green LED Off State                              | No Identify Trigger Effect in progress | 
 
 ## Building
 
@@ -65,9 +59,9 @@ guide assumes that the environment is linux based, and recommends Ubuntu 20.04.
 
     ```
     $ cd ~
-    $ wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.14.0.2667/sysconfig-1.14.0_2667-setup.run
-    $ chmod +x sysconfig-1.14.0_2667-setup.run
-    $ ./sysconfig-1.14.0_2667-setup.run
+    $ wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.15.0.2826/sysconfig-1.15.0_2826-setup.run
+    $ chmod +x sysconfig-1.15.0_2826-setup.run
+    $ ./sysconfig-1.15.0_2826-setup.run
     ```
 
 -   Run the bootstrap script to setup the build environment.
@@ -94,13 +88,13 @@ Ninja to build the executable.
 -   Run the build to produce a default executable. By default on Linux both the
     TI SimpleLink SDK and Sysconfig are located in a `ti` folder in the user's
     home directory, and you must provide the absolute path to them. For example
-    `/home/username/ti/sysconfig_1.14.0`. On Windows the default directory is
+    `/home/username/ti/sysconfig_1.15.0`. On Windows the default directory is
     `C:\ti`. Take note of this install path, as it will be used in the next
     step.
 
     ```
     $ cd ~/connectedhomeip/examples/lock-app/cc13x2x7_26x2x7
-    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.14.0\""
+    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.15.0\""
     $ ninja -C out/debug
 
     ```
@@ -110,7 +104,7 @@ Ninja to build the executable.
 
 
     ```
-    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.14.0\""
+    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.15.0\""
     ```
 
 ## Programming
@@ -193,43 +187,87 @@ terminal emulator to that port to see the output with the following options:
 ## Running the Example
 
 Once a device has been flashed with this example, it can now join and operate in
-an existing Thread network. The following sections assume that a Thread network
+an existing Matter network. The following sections assume that a Matter network
 is already active, and has at least one [OpenThread Border
 Router][ot_border_router_setup].
 
 For insight into what other components are needed to run this example, please
 refer to our [Matter Getting Started Guide][matter-e2e-faq].
 
-### Provisioning
+The steps below should be followed to commission the lighting device onto the 
+network and control it once it has been commissioned. 
 
-Interacting with the application begins by enabling BLE advertisements and then
-pairing the device into a Thread network.
+**Step 0** 
 
-#### Bluetooth LE Advertising
+Set up the CHIP tool by following the instructions outlined in our 
+[Matter Getting Started Guide][matter-e2e-faq].
 
-To provision this example onto a Thread network, the device must be discoverable
-over Bluetooth LE. BLE advertising is started by long pressing the right button
-(greater than 1000ms), labeled `BTN-2` on the silkscreen. Once the device is
+**Step 1**
+
+Commission the light device onto the Matter network. Run the following command 
+on the CHIP tool: 
+
+```
+
+./chip-tool pairing ble-thread <nodeID - e.g. 1> hex:<complete dataset from starting the OTBR> 20202021 3840 
+
+```
+
+Interacting with the application begins by enabling BLE advertisements and then 
+pairing the device into a Thread network. To provision this example onto a Matter 
+network, the device must be discoverable over Bluetooth LE. 
+
+On the LaunchPad, press and hold the right button, labeled `BTN-2`, for more than 
+1 second. Upon release, the Bluetooth LE advertising will begin. Once the device is
 fully provisioned, BLE advertising will stop.
 
-#### Bluetooth LE Rendezvous
 
-Pairing this application with `ble-thread` can be done with any of the enabled
-[CHIP Controller](../../../src/controller/README.md) applications. Use the
-information printed on the console to aide in pairing the device. The controller
-application can also be used to control the example app with the cluster
-commands.
+Once the device has been successfully commissioned, you will see the following message on the CHIP tool output: 
 
-#### CHIP Tool commands
+```
 
-To commission the lighting application, run the following command: 
+[1677648218.370754][39785:39790] CHIP:CTL: Received CommissioningComplete response, errorCode=0
+[1677648218.370821][39785:39790] CHIP:CTL: Successfully finished commissioning step 'SendComplete'
 
-./chip-tool pairing ble-thread {nodeID - e.g. 1} hex:{complete dataset from starting the OTBR} 20202021 3840 
+```
 
-To turn the light on or off, run the following commands:
+An accompanying message will be seen from the device: 
 
-./chip-tool onoff on {nodeID} 1
-./chip-tool onoff off {nodeID} 1
+```
+
+Commissioning complete, notify platform driver to persist network credentials. 
+
+```
+
+
+**Step 2**
+
+Send commands to the lighting app. Here are some example commands:
+
+On
+
+```
+./chip-tool onoff on <nodeID> 1
+./chip-tool onoff toggee <nodeID> 1 (assuming the light is off)
+
+```
+
+Off
+
+```
+./chip-tool onoff off <nodeID> 1
+./chip-tool onoff toggle <nodeID> 1 (assuming the light is on)
+
+```
+
+Identify
+
+```
+./chip-tool identify identify <IdentifyTime> <nodeID> 1   e.g.  ./chip-tool identify identify 100 1 1
+
+./chip-tool identify trigger-effect <EffectIdentifier> <EffectVariant> <nodeID> <endpointID>  e.g.  ./chip-tool identify trigger-effect 0x0000 0 1 1
+
+```
 
 ## TI Support
 
@@ -252,7 +290,7 @@ Additionally, we welcome any feedback.
     https://e2e.ti.com/support/wireless-connectivity/zigbee-thread-group/zigbee-and-thread/f/zigbee-thread-forum/1082428/faq-cc2652r7-matter----getting-started-guide
 [sysconfig]: https://www.ti.com/tool/SYSCONFIG
 [sysconfig_recommended]:
-    https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.14.0.2667/sysconfig-1.14.0_2667-setup.run
+    https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.15.0.2826/sysconfig-1.15.0_2826-setup.run
 [ti_thread_dnd]:
     https://www.ti.com/wireless-connectivity/thread/design-development.html
 [ot_border_router_setup]: https://openthread.io/guides/border-router/build
