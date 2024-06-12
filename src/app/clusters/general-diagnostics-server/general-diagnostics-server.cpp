@@ -49,7 +49,7 @@ using chip::Protocols::InteractionModel::Status;
 
 namespace {
 
-constexpr uint8_t kCurrentClusterRevision = 2;
+constexpr uint8_t kCurrentClusterRevision = 1;
 
 bool IsTestEventTriggerEnabled()
 {

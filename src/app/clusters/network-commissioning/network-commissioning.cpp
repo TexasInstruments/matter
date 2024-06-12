@@ -59,7 +59,7 @@ namespace {
 // For WiFi and Thread scan results, each item will cost ~60 bytes in TLV, thus 15 is a safe upper bound of scan results.
 constexpr size_t kMaxNetworksInScanResponse = 15;
 
-constexpr uint16_t kCurrentClusterRevision = 2;
+constexpr uint16_t kCurrentClusterRevision = 1;
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI_PDC
 constexpr size_t kPossessionNonceSize = 32;
@@ -781,9 +781,9 @@ void Instance::HandleRemoveNetwork(HandlerContext & ctx, const Commands::RemoveN
         // If no networks are left, clear-out errors;
         if (CountAndRelease(mpBaseDriver->GetNetworks()) == 0)
         {
-            SetLastNetworkId(ByteSpan{});
+            //SetLastNetworkId(ByteSpan{});
             SetLastConnectErrorValue(NullNullable);
-            SetLastNetworkingStatusValue(NullNullable);
+            //SetLastNetworkingStatusValue(NullNullable);
         }
     }
 }
