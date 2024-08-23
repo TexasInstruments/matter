@@ -231,7 +231,6 @@ bStatus_t CHIPoBLEProfile_RegisterAppCBs(chipOBleProfileCBs_t * appCallbacks)
  *
  * @return  bStatus_t
  */
-extern uint8 gattAppTaskID;
 bStatus_t CHIPoBLEProfile_SetParameter(uint8 param, uint8 len, void * value, uint8_t taskId)
 {
     bStatus_t ret = SUCCESS;

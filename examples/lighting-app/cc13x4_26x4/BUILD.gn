@@ -51,6 +51,10 @@ ti_sysconfig("sysconfig") {
     #"ti_devices_config.h",
   ]
 
+  if (silk_logging_enabled) {
+    outputs += [ "ti_log_config.c" ]
+  }
+
   public_configs = [ ":sdk_cc13x4_26x4_dmm_config" ]
 
   cflags = [

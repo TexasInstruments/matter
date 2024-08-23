@@ -19,6 +19,8 @@
 #ifndef APP_EVENT_H
 #define APP_EVENT_H
 
+#include <stdint.h>
+
 struct AppEvent;
 typedef void (*EventHandler)(AppEvent *);
 
@@ -35,6 +37,13 @@ struct AppEvent
         kEventType_Light,
         kEventType_Timer,
         kEventType_Identify,
+#ifdef TI_APPOBLE_ENABLE
+        kEventType_Diagnostic_refresh,
+        kEventType_Diagnostic_timer,
+        kEventType_Throughput_Matter_Disable,
+        kEventType_Throughput_Matter_Enable,
+        kEventType_Throughput_calculate,
+#endif
     };
 
     enum AppEventButtonType

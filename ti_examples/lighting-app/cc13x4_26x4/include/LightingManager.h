@@ -21,7 +21,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "AppEvent.h"
+#include <AppEvent.h>
 
 #include "FreeRTOS.h"
 #include "timers.h" // provides FreeRTOS timer support
@@ -73,8 +73,6 @@ private:
     static void TimerEventHandler(TimerHandle_t xTimer);
     static void ActuatorMovementTimerEventHandler(AppEvent * aEvent);
     static void OffEffectTimerEventHandler(AppEvent * aEvent);
-    
-
     static LightingManager sLight;
 };
 

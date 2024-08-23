@@ -1,7 +1,6 @@
 # Texas Instruments platform overview
 
-The Texas Instruments Matter platform is based on the
-TI SimpleLink™ SDK.
+The Texas Instruments Matter platform is based on the TI SimpleLink™ SDK.
 
 The following diagram is a simplified representation of a Matter application
 which is built on the TI Platform.
@@ -12,9 +11,19 @@ which is built on the TI Platform.
 
 ## Texas Instruments SimpleLink SDK
 
-This Texas Instruments Matter GitHub repository contains the software development components and tools that enable engineers to develop Matter based products. This repository is the starting point for Matter development on all SimpleLink Thread and Wi-Fi wireless microcontrollers (MCUs).
+This Texas Instruments Matter GitHub repository contains the software
+development components and tools that enable engineers to develop Matter based
+products. This repository is the starting point for Matter development on all
+SimpleLink Thread and Wi-Fi wireless microcontrollers (MCUs).
 
-The SimpleLink MCU portfolio offers a single development environment that delivers flexible hardware, software, and tool options for customers developing wired and wireless applications. With 100 percent code reuse across host MCUs, Wi-Fi™, Bluetooth Low Energy, 2.4GHz, Sub-1GHz devices and more, choose the MCU or connectivity standard that fits your design. A one-time investment with the SimpleLink software development kit allows you to reuse often, opening the door to create unlimited applications. For more information, visit www.ti.com/simplelink.
+The SimpleLink MCU portfolio offers a single development environment that
+delivers flexible hardware, software, and tool options for customers developing
+wired and wireless applications. With 100 percent code reuse across host MCUs,
+Wi-Fi™, Bluetooth Low Energy, 2.4GHz, Sub-1GHz devices and more, choose the MCU
+or connectivity standard that fits your design. A one-time investment with the
+SimpleLink software development kit allows you to reuse often, opening the door
+to create unlimited applications. For more information, visit
+www.ti.com/simplelink.
 
 <hr>
 
@@ -25,9 +34,9 @@ provision the Thread protocol to enable Matter communication. Then Thread is
 used for IP communication with other Matter devices.
 
 The TI applications leverage the Bluetooth Low Energy stack on the CC13XX and
-CC26XX families. This Bluetooth LE software is distributed in binary form within the TI
-SimpleLink SDK. The Bluetooth LE stack leverages code that is present in the device ROM
-for certain common Bluetooth LE operations.
+CC26XX families. This Bluetooth LE software is distributed in binary form within
+the TI SimpleLink SDK. The Bluetooth LE stack leverages code that is present in
+the device ROM for certain common Bluetooth LE operations.
 
 These applications leverage the OpenThread stack available within the Matter
 repository for Thread communication. Platform support source is built from the
@@ -60,9 +69,19 @@ configuration file.
 
 ## Matter Stack to TI Platform Interface
 
-Matter Stack interacts with LwIP, OpenThread, and the TI-BLE stack to achieve the protocol and application functionality. A Bluetooth LE profile is registered with the TI-BLE stack to enable provisioning and configuration. Once the device is provisioned Matter will configure the OpenThread interface to connect to an existing Thread network or to start its own network. From there the Matter IP messages are sent to the LwIP stack to be routed to the OpenThread stack for transmission.
-Matter Impl (Implementation) layer acts as an interface between Matter stack and the TI platform components such as BLE stack, OpenThread, FreeRTOS. It also supports components such as connectivity manager that provides the implementation for functionality required by Matter stack.
-Overall, applications generally only need to interface with the Cluster Library from Matter. The transport of messages and configuration of the device is all handled by the platform implementation files.
+Matter Stack interacts with LwIP, OpenThread, and the TI-BLE stack to achieve
+the protocol and application functionality. A Bluetooth LE profile is registered
+with the TI-BLE stack to enable provisioning and configuration. Once the device
+is provisioned Matter will configure the OpenThread interface to connect to an
+existing Thread network or to start its own network. From there the Matter IP
+messages are sent to the LwIP stack to be routed to the OpenThread stack for
+transmission. Matter Impl (Implementation) layer acts as an interface between
+Matter stack and the TI platform components such as BLE stack, OpenThread,
+FreeRTOS. It also supports components such as connectivity manager that provides
+the implementation for functionality required by Matter stack. Overall,
+applications generally only need to interface with the Cluster Library from
+Matter. The transport of messages and configuration of the device is all handled
+by the platform implementation files.
 
 <hr>
 
@@ -84,11 +103,17 @@ Below are several resources available for Matter development:
 Sample Matter applications are provided for the TI platform. These can be used
 as reference for your own application.
 
+Examples at (matter-repo-dir)/examples:
+
 -   [lock-app](../../../../examples/lock-app/cc13x4_26x4/README.md)
 -   [pump-app](../../../../examples/pump-app/cc13x4_26x4/README.md)
 -   [pump-controller-app](../../../../examples/pump-controller-app/cc13x4_26x4/README.md)
 -   [lighting-app](../../../../examples/lighting-app/cc13x4_26x4/README.md)
--   [generic-app](../../../../ti-examples/generic-app/cc13x4_26x4/README.md)
+
+Examples at (matter-repo-dir)/ti_examples
+
+-   [generic-app](../../../../ti_examples/generic-app/cc13x4_26x4/README.md)
+-   [lighting-app with AppoBLE feature](../../../../ti_examples/lighting-app/cc13x4_26x4/README.md)
 <hr>
 
 ### Build system
@@ -119,8 +144,8 @@ refer to the guide linked below.
 
 ## Intermittently Connected Devices
 
-For instructions on how to use the Matter ICD feature on TI devices, please refer
-to the guide linked below.
+For instructions on how to use the Matter ICD feature on TI devices, please
+refer to the guide linked below.
 
 -   [Enabling ICD On TI Devices](./enabling_icd_on_ti_devices.md)
 
@@ -137,7 +162,7 @@ Matter application, please refer to the guide linked below.
 
 ## TI Matter Product Certification
 
-For instructions on how to certify both Software and Hardware Matter components, 
+For instructions on how to certify both Software and Hardware Matter components,
 please refer to the guide linked below.
 
 -   [TI Matter Product Certification](./ti_matter_product_certification.md)

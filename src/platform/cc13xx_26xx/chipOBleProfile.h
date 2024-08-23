@@ -105,7 +105,7 @@ bStatus_t CHIPoBLEProfile_RegisterAppCBs(chipOBleProfileCBs_t * appCallbacks);
  *          data type (example: data type of uint16 will be cast to
  *          uint16 pointer).
  */
-bStatus_t CHIPoBLEProfile_SetParameter(uint8 param, uint8 len, void * value, uint8_t taskId);
+bStatus_t CHIPoBLEProfile_SetParameter(uint8 param, uint8 len, void * value, uint8_t taskId );
 
 /*
  *    CHIPoBLEProfile_GetParameter - Get a Simple GATT Profile parameter.

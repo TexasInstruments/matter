@@ -1,5 +1,6 @@
 /*
- *    Copyright (c) 2020 Project CHIP Authors
+ *
+ *    Copyright (c) 2021 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,21 +16,35 @@
  *    limitations under the License.
  */
 
-#ifndef APP_CONFIG_H
-#define APP_CONFIG_H
+#pragma once
 
-// Logging
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <stdint.h>
 
-int cc13xx_26xxLogInit(void);
-void cc13xx_26xxLog(const char * aFormat, ...);
-#define PLAT_LOG(...) cc13xx_26xxLog(__VA_ARGS__);
+struct RgbColor_t
+{
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+};
 
-#define ACTUATOR_MOVEMENT_PERIOD_MS 1000
+struct HsvColor_t
+{
+    uint8_t h;
+    uint8_t s;
+    uint8_t v;
+};
 
-#ifdef __cplusplus
-}
-#endif
-#endif // APP_CONFIG_H
+struct XyColor_t
+{
+    uint16_t x;
+    uint16_t y;
+};
+
+struct CtColor_t
+{
+    uint16_t ctMireds;
+};
+
+RgbColor_t XYToRgb(uint8_t Level, uint16_t currentX, uint16_t currentY);
+RgbColor_t HsvToRgb(HsvColor_t hsv);
+RgbColor_t CTToRgb(CtColor_t ct);

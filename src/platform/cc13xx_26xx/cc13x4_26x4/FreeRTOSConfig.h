@@ -126,7 +126,7 @@
 #define configUSE_TASK_NOTIFICATIONS 1
 
 /* Constants that define which hook (callback) functions should be used. */
-#define configUSE_IDLE_HOOK 0
+#define configUSE_IDLE_HOOK 1
 #define configUSE_TICK_HOOK 0
 #define configUSE_MALLOC_FAILED_HOOK 0
 

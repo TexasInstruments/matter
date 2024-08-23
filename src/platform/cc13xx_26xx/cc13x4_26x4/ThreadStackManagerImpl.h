@@ -94,6 +94,9 @@ public:
     void _SendProcMessage(procQueueMsg & procMsg);
     void _ProcMessage(otInstance * aInstance);
     void GetExtAddress(otExtAddress & aExtAddr);
+    void GetNetworkKey(otNetworkKey & akey);
+    uint8_t GetChannel();
+    otPanId GetPanID();
     CHIP_ERROR GetBufferInfo(void);
     bool IsThreadAttached(void);
     bool IsThreadEnabled(void);

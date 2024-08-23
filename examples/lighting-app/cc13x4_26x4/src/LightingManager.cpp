@@ -17,10 +17,10 @@
  *    limitations under the License.
  */
 
-#include "LightingManager.h"
+#include <LightingManager.h>
 
-#include "AppConfig.h"
-#include "AppTask.h"
+#include <AppConfig.h>
+#include <AppTask.h>
 #include <FreeRTOS.h>
 
 using namespace chip;
@@ -178,6 +178,6 @@ void LightingManager::ActuatorMovementTimerEventHandler(AppEvent * aEvent)
 void LightingManager::IdentifyEventHandler()
 {
     AppEvent event;
-    event.Type               = AppEvent::kEventType_Identify;
+    event.Type = AppEvent::kEventType_Identify;
     AppTask::GetAppTask().PostEvent(&event);
 }

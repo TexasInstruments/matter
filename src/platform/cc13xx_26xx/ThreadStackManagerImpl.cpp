@@ -34,6 +34,7 @@
 #include <openthread/heap.h>
 #include <platform/OpenThread/OpenThreadUtils.h>
 #include <platform/ThreadStackManager.h>
+#include <platform/cc13xx_26xx/DiagnosticDataProviderImpl.h>
 
 // platform folder in the TI SDK example application
 #include <system.h>
@@ -97,7 +98,11 @@ CHIP_ERROR ThreadStackManagerImpl::InitThreadStack(otInstance * otInst)
 #ifdef USE_DMM
     // DMM Init
     DMMSch_registerClient(xTaskGetCurrentTaskHandle(), DMMPolicy_StackRole_threadFtd);
+#ifdef DMMPOLICY_MATTER_IDLE
+    DMMPolicy_updateStackState(DMMPolicy_StackRole_threadFtd, DMMPOLICY_MATTER_IDLE);
+#else
     DMMPolicy_updateStackState(DMMPolicy_StackRole_threadFtd, DMMPOLICY_THREAD_IDLE);
+#endif
 #endif
 
     // Initialize the generic implementation base classes.
@@ -204,11 +209,41 @@ void ThreadStackManagerImpl::GetExtAddress(otExtAddress & aExtAddr)
     memcpy(aExtAddr.m8, extAddr->m8, OT_EXT_ADDRESS_SIZE);
 }
 
-bool ThreadStackManagerImpl::IsThreadAttached(){
+void ThreadStackManagerImpl::GetNetworkKey(otNetworkKey & akey)
+{
+    otNetworkKey key;
+    LockThreadStack();
+    otThreadGetNetworkKey(OTInstance(), &key);
+    UnlockThreadStack();
+
+    memcpy(akey.m8, key.m8, OT_NETWORK_KEY_SIZE);
+}
+
+uint8_t ThreadStackManagerImpl::GetChannel()
+{
+    uint8_t threadChannel;
+    LockThreadStack();
+    threadChannel = otLinkGetChannel(OTInstance());
+    UnlockThreadStack();
+    return threadChannel;
+}
+
+otPanId ThreadStackManagerImpl::GetPanID()
+{
+    otPanId panID;
+    LockThreadStack();
+    panID = otLinkGetPanId(OTInstance());
+    UnlockThreadStack();
+    return panID;
+}
+
+bool ThreadStackManagerImpl::IsThreadAttached()
+{
     return _IsThreadAttached();
 }
 
-bool ThreadStackManagerImpl::IsThreadEnabled(){
+bool ThreadStackManagerImpl::IsThreadEnabled()
+{
     return _IsThreadEnabled();
 }
 
