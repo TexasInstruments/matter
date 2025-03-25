@@ -28,12 +28,13 @@
 #include <platform/internal/CHIPDeviceLayerInternal.h>
 
 #include <platform/FreeRTOS/GenericThreadStackManagerImpl_FreeRTOS.hpp>
-#include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread_LwIP.cpp>
+#include <platform/OpenThread/GenericThreadStackManagerImpl_OpenThread.hpp>
 
 #include <mbedtls/platform.h>
 #include <openthread/heap.h>
 #include <platform/OpenThread/OpenThreadUtils.h>
 #include <platform/ThreadStackManager.h>
+#include <platform/cc13xx_26xx/Logging.h>
 
 // platform folder in the TI SDK example application
 #include <system.h>
@@ -103,7 +104,7 @@ CHIP_ERROR ThreadStackManagerImpl::InitThreadStack(otInstance * otInst)
     // Initialize the generic implementation base classes.
     err = GenericThreadStackManagerImpl_FreeRTOS<ThreadStackManagerImpl>::DoInit();
     SuccessOrExit(err);
-    err = GenericThreadStackManagerImpl_OpenThread_LwIP<ThreadStackManagerImpl>::DoInit(otInst);
+    err = GenericThreadStackManagerImpl_OpenThread<ThreadStackManagerImpl>::DoInit(otInst);
     SuccessOrExit(err);
 
 exit:
@@ -204,11 +205,13 @@ void ThreadStackManagerImpl::GetExtAddress(otExtAddress & aExtAddr)
     memcpy(aExtAddr.m8, extAddr->m8, OT_EXT_ADDRESS_SIZE);
 }
 
-bool ThreadStackManagerImpl::IsThreadAttached(){
+bool ThreadStackManagerImpl::IsThreadAttached()
+{
     return _IsThreadAttached();
 }
 
-bool ThreadStackManagerImpl::IsThreadEnabled(){
+bool ThreadStackManagerImpl::IsThreadEnabled()
+{
     return _IsThreadEnabled();
 }
 
@@ -274,3 +277,34 @@ extern "C" otInstance * OtInstance_get(void)
 {
     return ThreadStackMgrImpl().OTInstance();
 }
+
+#if CHIP_DEVICE_CONFIG_THREAD_ENABLE_CLI
+extern "C" void otPlatUartSendDone(void);
+
+extern "C" otError otPlatUartSend(const uint8_t * aBuf, uint16_t aBufLength)
+{
+    if (uartConsoleWrite((const char *) aBuf, aBufLength) > 0)
+    {
+        otPlatUartSendDone();
+        return OT_ERROR_NONE;
+    }
+    return OT_ERROR_FAILED;
+}
+
+extern "C"  otError otPlatUartFlush(void)
+{
+    return OT_ERROR_NOT_IMPLEMENTED;
+}
+
+extern "C"  otError otPlatUartDisable(void)
+{
+    return OT_ERROR_NOT_IMPLEMENTED;
+}
+
+extern "C"  otError otPlatUartEnable(void)
+{
+    uartConsoleInit();
+    return OT_ERROR_NONE;
+}
+
+#endif // CHIP_DEVICE_CONFIG_THREAD_ENABLE_CLI

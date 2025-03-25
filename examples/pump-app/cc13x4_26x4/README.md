@@ -45,6 +45,14 @@ Instruments devices.
 | Red & Green LED On State                         | Pump is started                        |
 | Red & Green LED Off State                        | Pump stopped                           |
 
+When the device has LIT ICD functionality enabled (`chip_enable_icd_lit` set to
+true in args.gni), the functionality of the right long button press changes as
+described below:
+
+| Action                                           | Functionality            |
+| ------------------------------------------------ | ------------------------ |
+| Right Button (`BTN-2`) Press (more than 1000 ms) | User Active Mode Trigger |
+
 ## Building
 
 ### Preparation
@@ -58,9 +66,9 @@ guide assumes that the environment is linux based, and recommends Ubuntu 20.04.
 
     ```
     $ cd ~
-    $ wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.18.1.3343/sysconfig-1.18.1_3343-setup.run
-    $ chmod +x sysconfig-1.18.1_3343-setup.run
-    $ ./sysconfig-1.18.1_3343-setup.run
+    $ wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.22.0.3893/sysconfig-1.22.0_3893-setup.run
+    $ chmod +x sysconfig-1.22.0_3893-setup.run
+    $ ./sysconfig-1.22.0_3893-setup.run
     ```
 
 -   Run the bootstrap script to setup the build environment.
@@ -91,15 +99,15 @@ Ninja to build the executable.
     ```
 
 -   Run the build to produce a default executable. By default on Linux both the
-    TI SimpleLink SDK and Sysconfig are located in a `ti` folder in the user's
+    TI SimpleLink SDK and SysConfig are located in a `ti` folder in the user's
     home directory, and you must provide the absolute path to them. For example
-    `/home/username/ti/sysconfig_1.18.1`. On Windows the default directory is
+    `/home/username/ti/sysconfig-1.22.0`. On Windows the default directory is
     `C:\ti`. Take note of this install path, as it will be used in the next
     step.
 
     ```
     $ cd ~/connectedhomeip/examples/pump-app/cc13x4_26x4
-    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.18.1\""
+    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig-1.22.0\""
     $ ninja -C out/debug
 
     ```
@@ -108,7 +116,7 @@ Ninja to build the executable.
     to the GN call.
 
     ```
-    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.18.1\" target_defines=[\"CC13X4_26X4_ATTESTATION_CREDENTIALS=1\"]"
+    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig-1.22.0\" target_defines=[\"CC13X4_26X4_ATTESTATION_CREDENTIALS=1\"] chip_generate_link_map_file=true"
     ```
 
 ## Programming

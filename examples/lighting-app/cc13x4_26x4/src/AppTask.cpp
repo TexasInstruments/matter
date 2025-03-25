@@ -39,6 +39,7 @@
 
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
+#include <inet/EndPointStateOpenThread.h>
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 
@@ -54,6 +55,10 @@
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>
+
+#if CHIP_CONFIG_ENABLE_ICD_UAT
+#include "app/icd/server/ICDNotifier.h"
+#endif
 
 /* syscfg */
 #include <ti_drivers_config.h>
@@ -126,13 +131,13 @@ void InitializeOTARequestor(void)
     sDownloader.SetImageProcessorDelegate(&sImageProcessor);
     sRequestorUser.Init(&sRequestorCore, &sImageProcessor);
 }
-#endif
 
 TimerHandle_t sOTAInitTimer = 0;
+#endif
 
 // The OTA Init Timer is only started upon the first Thread State Change
 // detected if the device is already on a Thread Network, or during the AppTask
-// Init sequence if the device is not yet on a Thread Network. Once the timer 
+// Init sequence if the device is not yet on a Thread Network. Once the timer
 // has been started once, it does not need to be started again so the flag will
 // be set to false.
 bool isAppStarting = true;
@@ -200,22 +205,27 @@ void DeviceEventCallback(const ChipDeviceEvent * event, intptr_t arg)
         PLAT_LOG("Thread State Change");
         bool isThreadAttached = ThreadStackMgrImpl().IsThreadAttached();
 
-        if(isThreadAttached){
+        if (isThreadAttached)
+        {
             PLAT_LOG("Device is on the Thread Network");
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-            if(isAppStarting){
+            if (isAppStarting)
+            {
                 StartTimer(OTAREQUESTOR_INIT_TIMER_DELAY_MS);
                 isAppStarting = false;
-            }   
+            }
 #endif
         }
         break;
     }
 }
 
-void OTAInitTimerEventHandler(TimerHandle_t xTimer){
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+void OTAInitTimerEventHandler(TimerHandle_t xTimer)
+{
     InitializeOTARequestor();
 }
+#endif
 
 int AppTask::Init()
 {
@@ -228,29 +238,32 @@ int AppTask::Init()
     PLAT_LOG("Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
 
     CHIP_ERROR ret = PlatformMgr().InitChipStack();
-    if (ret != CHIP_NO_ERROR){
-    
+    if (ret != CHIP_NO_ERROR)
+    {
+
         PLAT_LOG("PlatformMgr().InitChipStack() failed");
         while (1)
             ;
     }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
     // Create FreeRTOS sw timer for OTA timer.
-    sOTAInitTimer = xTimerCreate("OTAInitTmr",                 // Just a text name, not used by the RTOS kernel
-                            OTAREQUESTOR_INIT_TIMER_DELAY_MS,  // timer period (mS)
-                            false,                             // no timer reload (==one-shot)
-                            (void *) this,                     // init timer id = light obj context
-                            OTAInitTimerEventHandler           // timer callback handler
+    sOTAInitTimer = xTimerCreate("OTAInitTmr",                     // Just a text name, not used by the RTOS kernel
+                                 OTAREQUESTOR_INIT_TIMER_DELAY_MS, // timer period (mS)
+                                 false,                            // no timer reload (==one-shot)
+                                 (void *) this,                    // init timer id = light obj context
+                                 OTAInitTimerEventHandler          // timer callback handler
     );
 
     if (sOTAInitTimer == NULL)
     {
         PLAT_LOG("sOTAInitTimer timer create failed");
-    } 
+    }
     else
     {
         PLAT_LOG("sOTAInitTimer timer created successfully ");
     }
+#endif
 
     ret = ThreadStackMgr().InitThreadStack();
     if (ret != CHIP_NO_ERROR)
@@ -275,7 +288,6 @@ int AppTask::Init()
             ;
     }
 
-
     ret = ThreadStackMgrImpl().StartThreadTask();
     if (ret != CHIP_NO_ERROR)
     {
@@ -286,7 +298,7 @@ int AppTask::Init()
 
     // Initialize device attestation config
 #ifdef CC13X4_26X4_ATTESTATION_CREDENTIALS
-#ifdef CC13XX_26XX_FACTORY_DATA
+#ifdef TI_FACTORY_DATA
     SetDeviceInstanceInfoProvider(&mFactoryDataProvider);
     SetDeviceAttestationCredentialsProvider(&mFactoryDataProvider);
     SetCommissionableDataProvider(&mFactoryDataProvider);
@@ -301,9 +313,16 @@ int AppTask::Init()
     PLAT_LOG("Initialize Server");
     static CommonCaseDeviceServerInitParams initParams;
     static DefaultTestEventTriggerDelegate sTestEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
-    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;  
+    initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
 
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
+
+    chip::Inet::EndPointStateOpenThread::OpenThreadEndpointInitParam nativeParams;
+    nativeParams.lockCb                = [] { ThreadStackMgr().LockThreadStack(); };
+    nativeParams.unlockCb              = [] { ThreadStackMgr().UnlockThreadStack(); };
+    nativeParams.openThreadInstancePtr = chip::DeviceLayer::ThreadStackMgrImpl().OTInstance();
+    initParams.endpointNativeParams    = static_cast<void *>(&nativeParams);
+
 
     // Initialize info provider
     sExampleDeviceInfoProvider.SetStorageDelegate(initParams.persistentStorageDelegate);
@@ -337,11 +356,12 @@ int AppTask::Init()
     ConfigurationMgr().LogDeviceConfig();
 
     bool isThreadEnabled = ThreadStackMgrImpl().IsThreadEnabled();
-    if(!isThreadEnabled && isAppStarting){
+    if (!isThreadEnabled && isAppStarting)
+    {
 #if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
-    PLAT_LOG("Thread is Disabled, enable OTA Requestor");
-    StartTimer(OTAREQUESTOR_INIT_TIMER_DELAY_MS);
-    isAppStarting = false;
+        PLAT_LOG("Thread is Disabled, enable OTA Requestor");
+        StartTimer(OTAREQUESTOR_INIT_TIMER_DELAY_MS);
+        isAppStarting = false;
 #endif
     }
 
@@ -367,22 +387,23 @@ void AppTask::AppTaskMain(void * pvParameter)
     }
 }
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
 void StartTimer(uint32_t aTimeoutMs)
 {
-        PLAT_LOG("Start OTA Init Timer")
-        if (xTimerIsTimerActive(sOTAInitTimer))
-        {
-            PLAT_LOG("app timer already started!");
-            CancelTimer();
-        }
+    PLAT_LOG("Start OTA Init Timer")
+    if (xTimerIsTimerActive(sOTAInitTimer))
+    {
+        PLAT_LOG("app timer already started!");
+        CancelTimer();
+    }
 
-        // timer is not active, change its period to required value (== restart).
-        // FreeRTOS- Block for a maximum of 100 ticks if the change period command
-        // cannot immediately be sent to the timer command queue.
-        if (xTimerChangePeriod(sOTAInitTimer, pdMS_TO_TICKS(aTimeoutMs), 100) != pdPASS)
-        {
-            PLAT_LOG("sOTAInitTimer timer start() failed");
-        }  
+    // timer is not active, change its period to required value (== restart).
+    // FreeRTOS- Block for a maximum of 100 ticks if the change period command
+    // cannot immediately be sent to the timer command queue.
+    if (xTimerChangePeriod(sOTAInitTimer, pdMS_TO_TICKS(aTimeoutMs), 100) != pdPASS)
+    {
+        PLAT_LOG("sOTAInitTimer timer start() failed");
+    }
 }
 
 void CancelTimer(void)
@@ -392,6 +413,7 @@ void CancelTimer(void)
         PLAT_LOG("sOTAInitTimer stop() failed");
     }
 }
+#endif
 
 void AppTask::ActionInitiated(LightingManager::Action_t aAction, int32_t aActor)
 {
@@ -465,8 +487,12 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
     case AppEvent::kEventType_ButtonLeft:
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
+#if CHIP_CONFIG_ENABLE_ICD_UAT
+            PlatformMgr().ScheduleWork([](intptr_t) { app::ICDNotifier::GetInstance().NotifyNetworkActivityNotification(); });
+#else
             actor = AppEvent::kEventType_ButtonLeft;
             LightMgr().InitiateAction(actor, LightingManager::ON_ACTION);
+#endif
         }
         else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
         {
@@ -478,7 +504,12 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         if (AppEvent::kAppEventButtonType_Clicked == aEvent->ButtonEvent.Type)
         {
             actor = AppEvent::kEventType_ButtonRight;
+#if CHIP_CONFIG_ENABLE_ICD_UAT
+            LightMgr().IsLightOn() ? LightMgr().InitiateAction(actor, LightingManager::OFF_ACTION)
+                                   : LightMgr().InitiateAction(actor, LightingManager::ON_ACTION);
+#else
             LightMgr().InitiateAction(actor, LightingManager::OFF_ACTION);
+#endif
         }
         else if (AppEvent::kAppEventButtonType_LongClicked == aEvent->ButtonEvent.Type)
         {
@@ -522,13 +553,13 @@ void AppTask::DispatchEvent(AppEvent * aEvent)
         break;
 
     case AppEvent::kEventType_Identify:
-        // blink LED 
+        // blink LED
         PLAT_LOG("Identify cmd received, will blink green led three times now");
 #if (LED_ENABLE == 1)
-            LED_startBlinking(sAppGreenHandle, 250, 3);
-#endif   
+        LED_startBlinking(sAppGreenHandle, 250, 3);
+#endif
         break;
-    
+
     case AppEvent::kEventType_IdentifyStop:
         identify_StopAction();
         PLAT_LOG("Identify stopped");

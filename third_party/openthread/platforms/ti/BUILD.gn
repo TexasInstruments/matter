@@ -15,6 +15,7 @@
 import("//build_overrides/chip.gni")
 import("//build_overrides/openthread.gni")
 import("//build_overrides/ti_simplelink_sdk.gni")
+import("${chip_root}/src/lib/lib.gni")
 
 import("${ti_simplelink_sdk_build_root}/ti_simplelink_board.gni")
 import("${ti_simplelink_sdk_build_root}/ti_simplelink_sdk.gni")
@@ -45,6 +46,7 @@ source_set("libopenthread-ti") {
     "-Wno-address-of-packed-member",
     "-Wno-implicit-fallthrough",
     "-Wno-unused-label",
+    "-Wno-unused-variable",
   ]
   public_deps = [
     "${openthread_root}/src/core:libopenthread_core_headers",
@@ -63,16 +65,32 @@ source_set("libopenthread-ti") {
     "${openthread_root}/examples/platforms/utils/mac_frame.h",
     "${openthread_ti_root}/src/alarm.c",
     "${openthread_ti_root}/src/alarm_micro.c",
-    "${openthread_ti_root}/src/diag.c",
-    "${openthread_ti_root}/src/entropy.c",
     "${openthread_ti_root}/src/misc.c",
-    "${openthread_ti_root}/src/radio.c",
     "${openthread_ti_root}/src/settings.c",
   ]
+
+  if (chip_build_libshell) {
+    public_deps += [ "..:libopenthread-platform" ]
+    sources += [ "${openthread_root}/examples/apps/cli/cli_uart.cpp" ]
+  }
+
   public_configs = [
     ":openthread_ti_config",
     "${openthread_root}:openthread_config",
   ]
+
+  if (ti_simplelink_device_family == "cc27xx") {
+    sources += [
+      "${openthread_ti_root}/src/cc23xx_cc27xx/entropy.c",
+      "${openthread_ti_root}/src/cc23xx_cc27xx/radio.c",
+    ]
+  } else {
+    sources += [
+      "${openthread_ti_root}/src/diag.c",
+      "${openthread_ti_root}/src/entropy.c",
+      "${openthread_ti_root}/src/radio.c",
+    ]
+  }
 }
 
 source_set("ot-ti-cert") {

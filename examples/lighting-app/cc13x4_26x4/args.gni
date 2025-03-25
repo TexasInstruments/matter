@@ -32,16 +32,21 @@ chip_enable_ota_requestor = true
 
 chip_openthread_ftd = false
 
+# NOTE: LwIP is no longer supported, these options must stay the same
+chip_system_config_use_open_thread_inet_endpoints = true
+chip_inet_config_enable_tcp_endpoint = false
+chip_with_lwip = false
+chip_enable_openthread = true
+
 ot_ti_lib_dir = ""
 openthread_external_platform =
     "${chip_root}/third_party/openthread/platforms/ti:libopenthread-ti"
 
 # When using TI Certified Openthread libs set to ${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert
 # For source builds, set to empty string.
-chip_openthread_target =
-    "${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert"
+chip_openthread_target = ""
 
-# Disable CHIP Logging
+# Enable CHIP Logging
 chip_progress_logging = true
 chip_detail_logging = true
 chip_automation_logging = true
@@ -65,10 +70,8 @@ custom_factory_data = false
 chip_enable_icd_server = false
 chip_persist_subscriptions = false
 chip_subscription_timeout_resumption = false
+chip_enable_icd_lit = false
 
 freertos_root = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk/repo_cc13xx_cc26xx/source/third_party/freertos"
-
-if (chip_openthread_target != "") {
-  openthread_root =
-      "//third_party/connectedhomeip/third_party/openthread/ot-ti/openthread"
-}
+openthread_root =
+    "//third_party/connectedhomeip/third_party/openthread/ot-ti/openthread"

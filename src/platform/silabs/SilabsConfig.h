@@ -35,9 +35,11 @@
 #endif
 
 // Delay before Key/Value is actually saved in NVM
-#define SILABS_KVS_SAVE_DELAY_SECONDS 5
+#ifndef SL_KVS_SAVE_DELAY_SECONDS
+#define SL_KVS_SAVE_DELAY_SECONDS 2
+#endif
 
-static_assert((KVS_MAX_ENTRIES <= 255), "Implementation supports up to 255 Kvs entries");
+static_assert((KVS_MAX_ENTRIES <= 511), "Implementation supports up to 511 Kvs entries");
 static_assert((KVS_MAX_ENTRIES >= 30), "Mininimal Kvs entries requirement is not met");
 
 namespace chip {
@@ -89,7 +91,8 @@ public:
     // Persistent counter values set at runtime. Retained during factory reset.
     static constexpr uint8_t kMatterCounter_KeyBase = 0x74;
     // Persistent config values set at runtime. Cleared during factory reset.
-    static constexpr uint8_t kMatterKvs_KeyBase = 0x75;
+    static constexpr uint8_t kMatterKvs_KeyBase       = 0x75;
+    static constexpr uint8_t kMatterKvs_ExtendedRange = 0x76;
 
     // Key definitions for well-known configuration values.
     // Factory config keys
@@ -112,6 +115,11 @@ public:
     static constexpr Key KConfigKey_ProductLabel           = SilabsConfigKey(kMatterFactory_KeyBase, 0x10);
     static constexpr Key kConfigKey_ProductURL             = SilabsConfigKey(kMatterFactory_KeyBase, 0x11);
     static constexpr Key kConfigKey_PartNumber             = SilabsConfigKey(kMatterFactory_KeyBase, 0x12);
+    static constexpr Key kConfigKey_CACerts                = SilabsConfigKey(kMatterFactory_KeyBase, 0x13);
+    static constexpr Key kConfigKey_DeviceCerts            = SilabsConfigKey(kMatterFactory_KeyBase, 0x14);
+    static constexpr Key kConfigKey_hostname               = SilabsConfigKey(kMatterFactory_KeyBase, 0x15);
+    static constexpr Key kConfigKey_clientid               = SilabsConfigKey(kMatterFactory_KeyBase, 0x16);
+    static constexpr Key kConfigKey_Test_Event_Trigger_Key = SilabsConfigKey(kMatterFactory_KeyBase, 0x17);
     static constexpr Key kConfigKey_UniqueId               = SilabsConfigKey(kMatterFactory_KeyBase, 0x1F);
     static constexpr Key kConfigKey_Creds_KeyId            = SilabsConfigKey(kMatterFactory_KeyBase, 0x20);
     static constexpr Key kConfigKey_Creds_Base_Addr        = SilabsConfigKey(kMatterFactory_KeyBase, 0x21);
@@ -121,7 +129,11 @@ public:
     static constexpr Key kConfigKey_Creds_PAI_Size         = SilabsConfigKey(kMatterFactory_KeyBase, 0x25);
     static constexpr Key kConfigKey_Creds_CD_Offset        = SilabsConfigKey(kMatterFactory_KeyBase, 0x26);
     static constexpr Key kConfigKey_Creds_CD_Size          = SilabsConfigKey(kMatterFactory_KeyBase, 0x27);
-    static constexpr Key kConfigKey_Test_Event_Trigger_Key = SilabsConfigKey(kMatterFactory_KeyBase, 0x28);
+    static constexpr Key kConfigKey_Provision_Request      = SilabsConfigKey(kMatterFactory_KeyBase, 0x28);
+    static constexpr Key kConfigKey_Provision_Version      = SilabsConfigKey(kMatterFactory_KeyBase, 0x29);
+
+    static constexpr Key kOtaTlvEncryption_KeyId = SilabsConfigKey(kMatterFactory_KeyBase, 0x30);
+
     // Matter Config Keys
     static constexpr Key kConfigKey_ServiceConfig         = SilabsConfigKey(kMatterConfig_KeyBase, 0x01);
     static constexpr Key kConfigKey_PairedAccountId       = SilabsConfigKey(kMatterConfig_KeyBase, 0x02);
@@ -158,11 +170,12 @@ public:
     // Matter KVS storage Keys
     static constexpr Key kConfigKey_KvsStringKeyMap = SilabsConfigKey(kMatterKvs_KeyBase, 0x00);
     static constexpr Key kConfigKey_KvsFirstKeySlot = SilabsConfigKey(kMatterKvs_KeyBase, 0x01);
-    static constexpr Key kConfigKey_KvsLastKeySlot  = SilabsConfigKey(kMatterKvs_KeyBase, KVS_MAX_ENTRIES);
+    static constexpr Key kConfigKey_KvsLastKeySlot =
+        SilabsConfigKey(kMatterKvs_KeyBase + (KVS_MAX_ENTRIES >> 8), KVS_MAX_ENTRIES & UINT8_MAX);
 
     // Set key id limits for each group.
     static constexpr Key kMinConfigKey_MatterFactory = SilabsConfigKey(kMatterFactory_KeyBase, 0x00);
-    static constexpr Key kMaxConfigKey_MatterFactory = SilabsConfigKey(kMatterFactory_KeyBase, 0x2F);
+    static constexpr Key kMaxConfigKey_MatterFactory = SilabsConfigKey(kMatterFactory_KeyBase, 0x30);
     static constexpr Key kMinConfigKey_MatterConfig  = SilabsConfigKey(kMatterConfig_KeyBase, 0x00);
     static constexpr Key kMaxConfigKey_MatterConfig  = SilabsConfigKey(kMatterConfig_KeyBase, 0x22);
 
@@ -171,7 +184,9 @@ public:
     static constexpr Key kMaxConfigKey_MatterCounter = SilabsConfigKey(kMatterCounter_KeyBase, 0x1F);
 
     static constexpr Key kMinConfigKey_MatterKvs = kConfigKey_KvsStringKeyMap;
-    static constexpr Key kMaxConfigKey_MatterKvs = kConfigKey_KvsLastKeySlot;
+    static constexpr Key kMaxConfigKey_MatterKvs = SilabsConfigKey(kMatterKvs_ExtendedRange, 0xFF);
+    static_assert(kConfigKey_KvsLastKeySlot <= kMaxConfigKey_MatterKvs,
+                  "Configured KVS_MAX_ENTRIES overflows the reserved KVS Key range");
 
     static CHIP_ERROR Init(void);
     static void DeInit(void);

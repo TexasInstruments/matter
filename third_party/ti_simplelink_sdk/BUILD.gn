@@ -51,6 +51,15 @@ config("ti_simplelink_mbedtls_config") {
     defines = [ "MBEDTLS_CONFIG_FILE=\"cc32xx-mbedtls-config.h\"" ]
 
     include_dirs = [ "${chip_root}/src/platform/cc32xx" ]
+  } else if (ti_simplelink_device_family == "cc27xx") {
+    defines = [ "MBEDTLS_CONFIG_FILE=\"cc27xx-mbedtls-config.h\"" ]
+
+    include_dirs = [
+      "${chip_root}/src/platform/ti/",
+      "${chip_root}/src/platform/ti/cc27xx",
+      "${chip_root}/src/platform/ti/cc27xx/crypto",
+      "${ti_simplelink_sdk_root}/source",
+    ]
   }
 }
 
@@ -65,7 +74,14 @@ mbedtls_target("mbedtls") {
       "${chip_root}/src/platform/cc13xx_26xx/cc13x4_26x4/crypto/sha256_alt.c",
     ]
   }
+  if (ti_simplelink_device_family == "cc27xx") {
+    sources = [
+      "${chip_root}/src/platform/ti/cc27xx/crypto/aes_alt.c",
+      "${chip_root}/src/platform/ti/cc27xx/crypto/ecdsa_alt.c",
 
+      #"${chip_root}/src/platform/ti/cc27xx/crypto/sha256_alt.c", # Currently Unsupported
+    ]
+  }
   public_configs = [ ":ti_simplelink_mbedtls_config" ]
 
   public_deps = [ ti_simplelink_sysconfig_target ]
@@ -86,6 +102,12 @@ config("ti_simplelink_freertos_config") {
       "${chip_root}/src/platform/cc32xx",
       "${freertos_root}/repo/portable/GCC/ARM_CM3",
     ]
+  } else if (ti_simplelink_device_family == "cc27xx") {
+    include_dirs = [
+      "${chip_root}/src/platform/ti/cc27xx",
+      "${freertos_root}/portable/GCC/ARM_CM33_NTZ",
+      "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure",
+    ]
   }
 }
 
@@ -105,6 +127,12 @@ freertos_target("freertos") {
       "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/port.c",
       "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c",
     ]
+  } else if (ti_simplelink_device_family == "cc27xx") {
+    sources = [
+      "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/port.c",
+      "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c",
+      "${freertos_root}/portable/MemMang/heap_4.c",
+    ]
   } else if (ti_simplelink_device_family == "cc32xx") {
     sources = [
       "${freertos_root}/repo/portable/GCC/ARM_CM3/port.c",
@@ -116,6 +144,9 @@ freertos_target("freertos") {
 
   if (ti_simplelink_device_family == "cc13x4_26x4") {
     # BLE has to have it's own heap config
+    public_deps =
+        [ "${chip_root}/third_party/ti_simplelink_sdk:ti_simplelink_sysconfig" ]
+  } else if (ti_simplelink_device_family == "cc27xx") {
     public_deps =
         [ "${chip_root}/third_party/ti_simplelink_sdk:ti_simplelink_sysconfig" ]
   } else if (ti_simplelink_device_family == "cc32xx") {

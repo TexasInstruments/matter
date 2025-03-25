@@ -30,7 +30,6 @@
 #include <platform/cc13xx_26xx/DiagnosticDataProviderImpl.h>
 #include <platform/internal/GenericPlatformManagerImpl_FreeRTOS.ipp>
 
-#include <lwip/tcpip.h>
 
 #include <openthread/platform/entropy.h>
 #include <ti/drivers/TRNG.h>
@@ -130,8 +129,6 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
     dmmSchedulerParams.indexTable = DMMPolicy_ApplicationPolicyTable.indexTable;
     DMMSch_open(&dmmSchedulerParams);
 
-    // Initialize LwIP.
-    tcpip_init(NULL, NULL);
 
     app_random_init();
     err = chip::Crypto::add_entropy_source(app_entropy_source, NULL, 16);

@@ -32,28 +32,33 @@ Each element is described in more detail below:
    Developers can configure this per device. Elements in this file are from the
    specification.
 2. Matter Application with dummy factory data: Any TI Matter example application
-3. MCUBoot: MCUBoot image used for OTA. This is built with the Matter
-   application and does not require additional build steps from developers.
+3. MCUboot: MCUboot image used for OTA-enabled examples. This is built with the
+   Matter application and does not require additional build steps from
+   developers.
 4. create_factory_data.py: Processes a factory data JSON file and generates a
    hex file with the unique factory data values configured in the JSON file.
 5. factory_data_trim.py: When using the custom factory data option, this script
    removes the dummy factory data which is required to be able to successfully
    compile the application.
-6. `oad`\_and_factory_data_merge_tool.py: Merges the factory data hex, Matter
-   application without factory data and MCUBoot image to generate a functional
-   hex that can be programmed onto the device.
+6. `oad_and_`\factory_data_merge_tool.py: Merges the factory data hex, Matter
+   application without factory data and MCUboot image (if OTA-enabled) to
+   generate a functional hex that can be programmed onto the device.
 
 ## Flash memory layout
 
-![Memory Layout 2](images/cc13x4_memmap.png)
+![Memory Layout 2](images/memmap_cc13x4_cc26x4_cc27xx.drawio.png)
 
 ## How to use
 
 Out of box factory data location is configured to be on second to last page of
-flash. For CC13x4_CC26x4, the starting address is `0xFE800`. This can be configured in
-the linker file.
+flash. For the CC27xx device, factory data is placed at the end of flash before
+the HSM module. For CC13x4_CC26x4, the starting address is `0xFE800`, for
+CC27xx, the starting address is `0xE7000`. Each can be configured in their
+respective factory data linker command files (\*.lds), located
+[here for CC13x4_CC26x4](../../../src/platform/cc13xx_26xx) or
+[here for CC27xx](../../../src/platform/ti/cc27xx).
 
-To configure:
+To configure (CC13X4_CC26X4 for reference):
 
 1. Linker file: Set the start address for factory data in the linker file being
    used by the application
@@ -68,32 +73,10 @@ FLASH_FACTORY_DATA (R)  : ORIGIN = 0x000fe800, LENGTH = 0x00000900
         DEFINED(_factory_data_base_address) ? _factory_data_base_address : 0xFE800);
 ```
 
-2. create_factory_data.py: Set the address of the start of the factory data
-   elements. Refer to the comments in the script.
+2. In the example's args.gni file, set 'custom_factory_data' to true
 
-```
-    # there are 17 elements, each element will need 8 bytes in the struct
-    # 4 for length of the element, and 4 for the pointer to the element
-    # factory data starts at 0xFE800, so the elements will
-    # start 136 bytes after the start address
-    factory_data_dict = json.load(args.factory_data_json_file[0])
-    factory_data_schema = json.load(args.factory_data_schema[0])
-
-    validate(factory_data_dict, factory_data_schema)
-    factory_data = factory_data_dict['elements']
-
-    struct_idx = 0
-    values_idx = 0
-    value_address = 0xFE888
-```
-
-```
-   subprocess.call(['objcopy', 'temp.bin','--input-target','binary','--output-target', 'ihex', args.factory_data_hex_file, '--change-addresses=0xfe800'])
-```
-
-3. In the example's args.gni file, set 'custom_factory_data' to true
-
-It is recommended to keep 2 dedicated pages for CC13x4_CC26x4 for factory data.
+It is recommended to keep 2 dedicated pages for CC13x4_CC26x4/CC27xx for factory
+data.
 
 ### Formatting certs and keys for JSON file
 
@@ -110,6 +93,8 @@ being copied into the JSON file.
 The example application can be built using the instructions in the example's
 README. The factory data from the JSON file will be formatted into a hex file
 that will then be merged into the final executable. The final executable will be
-named _{example-application}-mcuboot.hex_ for CC13x4, and the factory data that
-was inputted into the JSON file will be named
-_{example-application}-factory-data.hex_.
+named _{example-application}-mcuboot.hex_ when OTA is enabled for CC13x4*CC26x4.
+If OTA is disabled, the final executable will be named
+*{example-application}-example-and-factory-data.hex*. The factory data that was
+inputted into the JSON file will be named
+*{example-application}-factory-data.hex\_.

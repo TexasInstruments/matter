@@ -41,7 +41,8 @@ template("ti_simplelink_executable") {
   output_base_name = get_path_info(invoker.output_name, "name")
 
   #used for OTA image creator for the cc13xx
-  if (ti_simplelink_device_family == "cc13x4_26x4") {
+  if (ti_simplelink_device_family == "cc13x4_26x4" ||
+      ti_simplelink_device_family == "cc27xx") {
     objcopy_image_name = output_base_name + ".hex"
     objcopy_image_format = "ihex"
   } else {
@@ -89,19 +90,24 @@ template("ti_simplelink_executable") {
       }
     } else if (ti_simplelink_device_family == "cc32xx") {
       ldscript = "${ti_simplelink_sdk_root}/source/ti/boards/cc32xxsf/cc32xxsf_freertos.lds"
+    } else if (ti_simplelink_device_family == "cc27xx") {
+      if (custom_factory_data) {
+        ldscript = "${chip_root}/src/platform/ti/cc27xx/cc27xx_freertos_factory_data.lds"
+      } else {
+        ldscript = "${chip_root}/src/platform/ti/cc27xx/cc27xx_freertos.lds"
+      }
     }
-
     inputs = [ ldscript ]
 
     ldflags = [
       "-L" + rebase_path(ti_simplelink_sdk_root + "/source", root_build_dir),
+      "-L" + rebase_path("${target_gen_dir}/sysconfig/", root_build_dir),
       rebase_path(
           "${target_gen_dir}/sysconfig/ti_utils_build_linker.cmd.genlibs",
           root_build_dir),
       "-T" + rebase_path(ldscript, root_build_dir),
     ]
   }
-
   if (chip_enable_ota_requestor) {
     if (ti_simplelink_device_family == "cc13x4_26x4") {
       if (custom_factory_data) {
@@ -128,18 +134,21 @@ template("ti_simplelink_executable") {
           script = "${ti_simplelink_sdk_build_root}/create_factory_data.py"
           sources = [
             "${chip_root}/src/platform/cc13xx_26xx/factory_data.schema",
-            "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx.json",
+            "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx_cc27xx.json",
           ]
           outputs = [ "${root_out_dir}/${output_base_name}-factory-data.hex" ]
 
           args = [
             "-factory_data",
             rebase_path(
-                "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx.json"),
+                "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx_cc27xx.json"),
             "-schema",
             rebase_path(
                 "${chip_root}/src/platform/cc13xx_26xx/factory_data.schema"),
             "-o",
+            "--matter_app_map_file",
+            rebase_path("${root_out_dir}/${output_base_name}.out.map",
+                        root_out_dir),
             rebase_path("${root_out_dir}/${output_base_name}-factory-data.hex",
                         root_out_dir),
             "-device",
@@ -404,11 +413,10 @@ template("ti_simplelink_executable") {
         }
       }
     }
-  } else if (ti_simplelink_device_family == "cc13x4_26x4" &&
-             custom_factory_data) {
+  } else if ((ti_simplelink_device_family == "cc13x4_26x4" ||
+              ti_simplelink_device_family == "cc27xx") && custom_factory_data) {
     pw_python_action("${simplelink_target_name}-without-factory-data.hex") {
       public_deps = [ ":${simplelink_target_name}.out.image" ]
-
       script = "${ti_simplelink_sdk_build_root}/factory_data_trim.py"
       sources = [ "${root_out_dir}/${objcopy_image_name}" ]
       outputs =
@@ -421,29 +429,34 @@ template("ti_simplelink_executable") {
         rebase_path(
             "${root_out_dir}/${output_base_name}-without-factory-data.hex",
             root_out_dir),
-        "cc13x4_26x4",
+        ti_simplelink_device_family,
       ]
     }
     pw_python_action("${simplelink_target_name}-factory-data.hex") {
+      public_deps = [ ":${simplelink_target_name}.out.image" ]
+
       script = "${ti_simplelink_sdk_build_root}/create_factory_data.py"
       sources = [
         "${chip_root}/src/platform/cc13xx_26xx/factory_data.schema",
-        "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx.json",
+        "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx_cc27xx.json",
       ]
       outputs = [ "${root_out_dir}/${output_base_name}-factory-data.hex" ]
 
       args = [
         "-factory_data",
         rebase_path(
-            "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx.json"),
+            "${chip_root}/src/platform/cc13xx_26xx/factory_data_cc13xx_26xx_cc27xx.json"),
         "-schema",
         rebase_path(
             "${chip_root}/src/platform/cc13xx_26xx/factory_data.schema"),
         "-o",
         rebase_path("${root_out_dir}/${output_base_name}-factory-data.hex",
                     root_out_dir),
+        "--matter_app_map_file",
+        rebase_path("${root_out_dir}/${output_base_name}.out.map",
+                    root_out_dir),
         "-device",
-        "cc13x4_26x4",
+        ti_simplelink_device_family,
       ]
     }
     pw_python_action("${simplelink_target_name}-and-factory-data.hex") {
@@ -484,6 +497,10 @@ template("ti_simplelink_executable") {
     } else {
       # The executable is the final target.
       data_deps = [ ":${simplelink_target_name}.out" ]
+      if ((ti_simplelink_device_family == "cc13x4_26x4" ||
+           ti_simplelink_device_family == "cc27xx") && custom_factory_data) {
+        data_deps += [ ":${simplelink_target_name}-and-factory-data.hex" ]
+      }
     }
 
     if (defined(invoker.data_deps)) {

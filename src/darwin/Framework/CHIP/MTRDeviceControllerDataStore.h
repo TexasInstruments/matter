@@ -72,12 +72,24 @@ typedef void (^MTRDeviceControllerDataStoreClusterDataHandler)(NSDictionary<NSNu
 /**
  * Storage for MTRDevice attribute read cache. This is local-only storage as an optimization. New controller devices using MTRDevice API can prime their own local cache from devices directly.
  */
-- (nullable NSArray<NSDictionary *> *)getStoredAttributesForNodeID:(NSNumber *)nodeID;
-- (void)storeAttributeValues:(NSArray<NSDictionary *> *)dataValues forNodeID:(NSNumber *)nodeID;
 - (nullable NSDictionary<MTRClusterPath *, MTRDeviceClusterData *> *)getStoredClusterDataForNodeID:(NSNumber *)nodeID;
+- (nullable MTRDeviceClusterData *)getStoredClusterDataForNodeID:(NSNumber *)nodeID endpointID:(NSNumber *)endpointID clusterID:(NSNumber *)clusterID;
 - (void)storeClusterData:(NSDictionary<MTRClusterPath *, MTRDeviceClusterData *> *)clusterData forNodeID:(NSNumber *)nodeID;
-- (void)clearStoredAttributesForNodeID:(NSNumber *)nodeID;
-- (void)clearAllStoredAttributes;
+- (void)clearStoredClusterDataForNodeID:(NSNumber *)nodeID;
+- (void)clearStoredClusterDataForNodeID:(NSNumber *)nodeID endpointID:(NSNumber *)endpointID;
+- (void)clearStoredClusterDataForNodeID:(NSNumber *)nodeID endpointID:(NSNumber *)endpointID clusterID:(NSNumber *)clusterID;
+- (void)removeAttributes:(NSSet<NSNumber *> *)attributes fromCluster:(MTRClusterPath *)path forNodeID:(NSNumber *)nodeID;
+- (void)clearAllStoredClusterData;
+
+/**
+ * Storage for miscellaneous MTRDevice data that only needs to be stored
+ * locally.
+ *
+ * storeDeviceData uses data and nodeID async without copying, so callers should
+ * not modify the passed-in dictionary or nodeID.
+ */
+- (nullable NSDictionary<NSString *, id> *)getStoredDeviceDataForNodeID:(NSNumber *)nodeID;
+- (void)storeDeviceData:(NSDictionary<NSString *, id> *)data forNodeID:(NSNumber *)nodeID;
 
 @end
 

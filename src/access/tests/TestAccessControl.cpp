@@ -19,11 +19,13 @@
 #include "access/AccessControl.h"
 #include "access/examples/ExampleAccessControlDelegate.h"
 
+#include <pw_unit_test/framework.h>
+
 #include <lib/core/CHIPCore.h>
+#include <lib/core/StringBuilderAdapters.h>
 
-#include <gtest/gtest.h>
-
-namespace {
+namespace chip {
+namespace Access {
 
 using namespace chip;
 using namespace chip::Access;
@@ -1750,7 +1752,11 @@ TEST_F(TestAccessControl, TestCheck)
     for (const auto & checkData : checkData1)
     {
         CHIP_ERROR expectedResult = checkData.allow ? CHIP_NO_ERROR : CHIP_ERROR_ACCESS_DENIED;
-        EXPECT_EQ(accessControl.Check(checkData.subjectDescriptor, checkData.requestPath, checkData.privilege), expectedResult);
+        auto requestPath          = checkData.requestPath;
+#if CHIP_CONFIG_USE_ACCESS_RESTRICTIONS
+        requestPath.requestType = Access::RequestType::kAttributeReadRequest;
+#endif
+        EXPECT_EQ(accessControl.Check(checkData.subjectDescriptor, requestPath, checkData.privilege), expectedResult);
     }
 }
 
@@ -2189,4 +2195,5 @@ TEST_F(TestAccessControl, TestUpdateEntry)
     }
 }
 
-} // namespace
+} // namespace Access
+} // namespace chip

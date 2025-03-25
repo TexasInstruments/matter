@@ -83,7 +83,7 @@ Ninja to build the executable.
     ```
 
 -   Run the build to produce a default executable. By default on Linux the
-    Sysconfig is located in a `ti` folder in the user's home directory, and you
+    SysConfig is located in a `ti` folder in the user's home directory, and you
     must provide the absolute path for it. For example
     `/home/username/ti/sysconfig_1.13.0`. On Windows the default directory is
     `C:\ti`. Take note of this install path, as it will be used in the next

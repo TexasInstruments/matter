@@ -82,11 +82,12 @@ ti_simplelink_executable("pump_app") {
     "${chip_root}/examples/platform/cc13x4_26x4:cc13x4_26x4-attestation-credentials",
     "${chip_root}/examples/pump-app/pump-common",
     "${chip_root}/src/lib",
+    "${chip_root}/src/platform/logging:default",
     "${chip_root}/third_party/openthread:openthread",
   ]
   defines = []
   if (custom_factory_data) {
-    defines += [ "CC13XX_26XX_FACTORY_DATA" ]
+    defines += [ "TI_FACTORY_DATA" ]
   }
 
   if (chip_enable_icd_server) {

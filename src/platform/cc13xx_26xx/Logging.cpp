@@ -5,6 +5,8 @@
 #include <lib/core/CHIPConfig.h>
 #include <platform/CHIPDeviceConfig.h>
 
+#include <platform/cc13xx_26xx/Logging.h>
+
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <openthread/platform/logging.h>
 #endif
@@ -15,19 +17,44 @@
 
 #include <stdio.h>
 
-UART2_Handle sDebugUartHandle;
+UART2_Handle sDebugUartHandle = NULL;
 char sDebugUartBuffer[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+
+extern "C" void uartConsoleInit(void)
+{
+    if (NULL == sDebugUartHandle)
+    {
+        UART2_Params uartParams;
+
+        UART2_Params_init(&uartParams);
+        // Most params can be default because we only send data, we don't receive
+        uartParams.baudRate = 115200;
+
+        sDebugUartHandle = UART2_open(CONFIG_UART2_DEBUG, &uartParams);
+    }
+}
+
+ssize_t uartConsoleRead(char * buf, size_t len)
+{
+    size_t ret;
+
+    UART2_read(sDebugUartHandle, buf, len, &ret);
+
+    return ret;
+}
+
+ssize_t uartConsoleWrite(const char * buf, size_t len)
+{
+    size_t bytesWritten;
+     UART2_write(sDebugUartHandle, buf, len, &bytesWritten);
+     return bytesWritten;
+}
+
 
 #if MATTER_CC13XX_26XX_PLATFORM_LOG_ENABLED
 extern "C" int cc13xx_26xxLogInit(void)
 {
-    UART2_Params uartParams;
-
-    UART2_Params_init(&uartParams);
-    // Most params can be default because we only send data, we don't receive
-    uartParams.baudRate = 115200;
-
-    sDebugUartHandle = UART2_open(CONFIG_UART2_DEBUG, &uartParams);
+    uartConsoleInit();
     return 0;
 }
 
@@ -43,15 +70,14 @@ extern "C" void cc13xx_26xxVLog(const char * msg, va_list v)
         sDebugUartBuffer[len - 2] = '\r';
         sDebugUartBuffer[len - 1] = '\n';
 
-        UART2_write(sDebugUartHandle, sDebugUartBuffer, len, NULL);
+        uartConsoleWrite(sDebugUartBuffer, len);
     }
 }
 
 #else
 
-/* log functins defined somewhere else */
-extern "C" int cc13xx_26xxLogInit(void);
-extern "C" void cc13xx_26xxVLog(const char * msg, va_list v);
+extern "C" int cc13xx_26xxLogInit(void) { return 0;}
+extern "C" void cc13xx_26xxVLog(const char * msg, va_list v) {};
 
 #endif // MATTER_CC13XX_26XX_PLATFORM_LOG_ENABLED
 

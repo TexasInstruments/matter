@@ -46,7 +46,7 @@ static CHIP_ERROR ParseDataVersionFilterList(jobject dataVersionFilterList,
 
 CHIP_ERROR subscribe(JNIEnv * env, jlong handle, jlong callbackHandle, jlong devicePtr, jobject attributePathList,
                      jobject eventPathList, jobject dataVersionFilterList, jint minInterval, jint maxInterval,
-                     jboolean keepSubscriptions, jboolean isFabricFiltered, jint imTimeoutMs, jobject eventMin)
+                     jboolean keepSubscriptions, jboolean isFabricFiltered, jint imTimeoutMs, jobject eventMin, jboolean isPeerLIT)
 {
     chip::DeviceLayer::StackLock lock;
     CHIP_ERROR err               = CHIP_NO_ERROR;
@@ -81,10 +81,11 @@ CHIP_ERROR subscribe(JNIEnv * env, jlong handle, jlong callbackHandle, jlong dev
     if (numAttributePaths > 0)
     {
         std::unique_ptr<chip::app::AttributePathParams[]> attributePaths(new chip::app::AttributePathParams[numAttributePaths]);
-        for (uint8_t i = 0; i < numAttributePaths; i++)
+        for (size_t i = 0; i < numAttributePaths; i++)
         {
             jobject attributePathItem = nullptr;
-            SuccessOrExit(err = JniReferences::GetInstance().GetListItem(attributePathList, i, attributePathItem));
+            SuccessOrExit(err =
+                              JniReferences::GetInstance().GetListItem(attributePathList, static_cast<jint>(i), attributePathItem));
 
             EndpointId endpointId;
             ClusterId clusterId;
@@ -107,10 +108,11 @@ CHIP_ERROR subscribe(JNIEnv * env, jlong handle, jlong callbackHandle, jlong dev
     if (numDataVersionFilters > 0)
     {
         std::unique_ptr<chip::app::DataVersionFilter[]> dataVersionFilters(new chip::app::DataVersionFilter[numDataVersionFilters]);
-        for (uint8_t i = 0; i < numDataVersionFilters; i++)
+        for (size_t i = 0; i < numDataVersionFilters; i++)
         {
             jobject dataVersionFilterItem = nullptr;
-            SuccessOrExit(err = JniReferences::GetInstance().GetListItem(dataVersionFilterList, i, dataVersionFilterItem));
+            SuccessOrExit(
+                err = JniReferences::GetInstance().GetListItem(dataVersionFilterList, static_cast<jint>(i), dataVersionFilterItem));
 
             EndpointId endpointId;
             ClusterId clusterId;
@@ -128,6 +130,9 @@ CHIP_ERROR subscribe(JNIEnv * env, jlong handle, jlong callbackHandle, jlong dev
         params.mEventNumber.SetValue(static_cast<chip::EventNumber>(JniReferences::GetInstance().LongToPrimitive(eventMin)));
     }
 
+    params.mIsPeerLIT = (isPeerLIT == JNI_TRUE);
+    ChipLogProgress(Controller, "Peer ICD type is set to %s", params.mIsPeerLIT ? "LIT-ICD" : "non LIT-ICD");
+
     if (eventPathList != nullptr)
     {
         jint jNumEventPaths = 0;
@@ -138,10 +143,10 @@ CHIP_ERROR subscribe(JNIEnv * env, jlong handle, jlong callbackHandle, jlong dev
     if (numEventPaths > 0)
     {
         std::unique_ptr<chip::app::EventPathParams[]> eventPaths(new chip::app::EventPathParams[numEventPaths]);
-        for (uint8_t i = 0; i < numEventPaths; i++)
+        for (size_t i = 0; i < numEventPaths; i++)
         {
             jobject eventPathItem = nullptr;
-            SuccessOrExit(err = JniReferences::GetInstance().GetListItem(eventPathList, i, eventPathItem));
+            SuccessOrExit(err = JniReferences::GetInstance().GetListItem(eventPathList, static_cast<jint>(i), eventPathItem));
 
             EndpointId endpointId;
             ClusterId clusterId;
@@ -310,7 +315,7 @@ CHIP_ERROR write(JNIEnv * env, jlong handle, jlong callbackHandle, jlong deviceP
         device->GetExchangeManager(), callback->GetChunkedWriteCallback(),
         convertedTimedRequestTimeoutMs != 0 ? Optional<uint16_t>(convertedTimedRequestTimeoutMs) : Optional<uint16_t>::Missing());
 
-    for (uint8_t i = 0; i < listSize; i++)
+    for (jint i = 0; i < listSize; i++)
     {
         jobject attributeItem             = nullptr;
         jmethodID getEndpointIdMethod     = nullptr;
@@ -491,7 +496,7 @@ CHIP_ERROR extendableInvoke(JNIEnv * env, jlong handle, jlong callbackHandle, jl
     config.SetRemoteMaxPathsPerInvoke(device->GetSecureSession().Value()->GetRemoteSessionParameters().GetMaxPathsPerInvoke());
     SuccessOrExit(err = commandSender->SetCommandSenderConfig(config));
 
-    for (uint8_t i = 0; i < listSize; i++)
+    for (jint i = 0; i < listSize; i++)
     {
         jmethodID getEndpointIdMethod     = nullptr;
         jmethodID getClusterIdMethod      = nullptr;
@@ -804,6 +809,30 @@ exit:
     return err;
 }
 
+jlong getRemoteDeviceId(jlong devicePtr)
+{
+    OperationalDeviceProxy * chipDevice = reinterpret_cast<OperationalDeviceProxy *>(devicePtr);
+    if (chipDevice == nullptr)
+    {
+        ChipLogProgress(Controller, "Could not cast device pointer to Device object");
+        return static_cast<jlong>(chip::kUndefinedNodeId);
+    }
+
+    return static_cast<jlong>(chipDevice->GetDeviceId());
+}
+
+jint getFabricIndex(jlong devicePtr)
+{
+    OperationalDeviceProxy * chipDevice = reinterpret_cast<OperationalDeviceProxy *>(devicePtr);
+    if (chipDevice == nullptr)
+    {
+        ChipLogProgress(Controller, "Could not cast device pointer to Device object");
+        return static_cast<jint>(chip::kUndefinedFabricIndex);
+    }
+
+    return static_cast<jint>(chipDevice->GetPeerScopedNodeId().GetFabricIndex());
+}
+
 /**
  * Takes objects in attributePathList, converts them to app:AttributePathParams, and appends them to outAttributePathParamsList.
  */
@@ -818,7 +847,7 @@ CHIP_ERROR ParseAttributePathList(jobject attributePathList, std::vector<app::At
 
     ReturnErrorOnFailure(JniReferences::GetInstance().GetListSize(attributePathList, listSize));
 
-    for (uint8_t i = 0; i < listSize; i++)
+    for (jint i = 0; i < listSize; i++)
     {
         jobject attributePathItem = nullptr;
         ReturnErrorOnFailure(JniReferences::GetInstance().GetListItem(attributePathList, i, attributePathItem));
@@ -872,7 +901,7 @@ CHIP_ERROR ParseEventPathList(jobject eventPathList, std::vector<app::EventPathP
 
     ReturnErrorOnFailure(JniReferences::GetInstance().GetListSize(eventPathList, listSize));
 
-    for (uint8_t i = 0; i < listSize; i++)
+    for (jint i = 0; i < listSize; i++)
     {
         jobject eventPathItem = nullptr;
         ReturnErrorOnFailure(JniReferences::GetInstance().GetListItem(eventPathList, i, eventPathItem));
@@ -930,7 +959,7 @@ CHIP_ERROR ParseDataVersionFilterList(jobject dataVersionFilterList, std::vector
 
     ReturnErrorOnFailure(JniReferences::GetInstance().GetListSize(dataVersionFilterList, listSize));
 
-    for (uint8_t i = 0; i < listSize; i++)
+    for (jint i = 0; i < listSize; i++)
     {
         jobject dataVersionFilterItem = nullptr;
         ReturnErrorOnFailure(JniReferences::GetInstance().GetListItem(dataVersionFilterList, i, dataVersionFilterItem));

@@ -27,7 +27,7 @@
 
 #include <platform/CHIPDeviceLayer.h>
 
-#ifdef CC13XX_26XX_FACTORY_DATA
+#ifdef TI_FACTORY_DATA
 #include <platform/cc13xx_26xx/FactoryDataProvider.h>
 #endif
 
@@ -44,7 +44,7 @@ private:
 
     static AppTask sAppTask;
 
-#ifdef CC13XX_26XX_FACTORY_DATA
+#ifdef TI_FACTORY_DATA
     chip::DeviceLayer::FactoryDataProvider mFactoryDataProvider;
 #endif
 };

@@ -15,19 +15,18 @@
  *    limitations under the License.
  */
 
-#include "TestCHIPoBLEStackMgr.h"
-#include <gtest/gtest.h>
-#include <platform/CHIPDeviceConfig.h>
 #include <stdlib.h>
+
+#include <pw_unit_test/framework.h>
+
+#include <platform/CHIPDeviceConfig.h>
 
 int main(int argc, char * argv[])
 {
-#if CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
+    testing::InitGoogleTest(&argc, argv);
     if (argc == 2 && atoi(argv[1]) == 1)
     {
-        testing::InitGoogleTest(nullptr, nullptr);
         return RUN_ALL_TESTS();
     }
     return 0;
-#endif // CHIP_DEVICE_CONFIG_ENABLE_CHIPOBLE
 }

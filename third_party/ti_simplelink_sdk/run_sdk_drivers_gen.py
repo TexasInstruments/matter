@@ -19,6 +19,7 @@ parser.add_argument('--chip-root', help="CHIP Root")
 parser.add_argument('--src-path-drivers', help="the path where the built drivers exist")
 parser.add_argument('--src-path-driverlib', help="the path where the built driverlib exist")
 parser.add_argument('--dest-path', help="path where drivers will be copied to")
+parser.add_argument('--src-path-hsm', help="path where the HSM Library will be copied to")
 
 args = parser.parse_args()
 
@@ -41,6 +42,8 @@ dest_path = args.dest_path
 
 make_command = ["make", "-C", args.sdk, "CMAKE=cmake", "GCC_ARMCOMPILER=" +
                 GCC_ARMCOMPILER_PATH, "IAR_ARMCOMPILER=", "TICLANG_ARMCOMPILER=", "GENERATOR=Ninja"]
+
+
 pid = os.fork()
 if pid:
     status = os.wait()
@@ -55,6 +58,15 @@ if pid:
     else:
         print("Driverlib does not exist or path is incorrect.")
         sys.exit(2)
+
+    # Verify HSM is built only for CC27xx
+    if ("cc27xx" in source_file_drivers):
+        if os.path.exists(args.sdk + args.src_path_hsm):
+            shutil.copy(args.sdk + args.src_path_hsm, dest_path)
+        else:
+            print("HSM Library does not exist or path is incorrect.")
+            sys.exit(2)
+
 else:
     make_command = ["make", "-C", args.sdk, "CMAKE=cmake", "GCC_ARMCOMPILER=" +
                     GCC_ARMCOMPILER_PATH, "IAR_ARMCOMPILER=", "TICLANG_ARMCOMPILER=", "GENERATOR=Ninja"]

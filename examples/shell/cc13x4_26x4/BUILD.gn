@@ -75,12 +75,13 @@ ti_simplelink_executable("shell_app") {
     "${chip_root}/examples/shell/shell_common:shell_common",
     "${chip_root}/src/lib",
     "${chip_root}/src/lib/shell:shell",
+    "${chip_root}/src/platform/logging:default",
     "${chip_root}/src/setup_payload",
     "${chip_root}/third_party/openthread:openthread",
   ]
   defines = []
   if (custom_factory_data) {
-    defines += [ "CC13XX_26XX_FACTORY_DATA" ]
+    defines += [ "TI_FACTORY_DATA" ]
   }
 
   if (chip_enable_icd_server) {

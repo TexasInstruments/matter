@@ -41,6 +41,12 @@ chip_openthread_target =
 
 chip_openthread_ftd = true
 
+# NOTE: LwIP is no longer supported, these options must stay the same
+chip_system_config_use_open_thread_inet_endpoints = true
+chip_inet_config_enable_tcp_endpoint = false
+chip_with_lwip = false
+chip_enable_openthread = true
+
 # Disable CHIP Logging
 #chip_progress_logging = false
 #chip_detail_logging = false
@@ -58,16 +64,14 @@ matter_device_pid = "0x8011"
 matter_software_ver = "0x0001"
 matter_software_ver_str = "1.0.1+1"
 
-custom_factory_data = true
+custom_factory_data = false
 
 # ICD Default configurations
 chip_enable_icd_server = false
 chip_persist_subscriptions = false
 chip_subscription_timeout_resumption = false
+chip_enable_icd_lit = false
 
 freertos_root = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk/repo_cc13xx_cc26xx/source/third_party/freertos"
-
-if (chip_openthread_target != "") {
-  openthread_root =
-      "//third_party/connectedhomeip/third_party/openthread/ot-ti/openthread"
-}
+openthread_root =
+    "//third_party/connectedhomeip/third_party/openthread/ot-ti/openthread"
