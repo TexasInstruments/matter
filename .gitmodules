@@ -205,7 +205,7 @@
 	path = third_party/openthread/ot-ti
 	url = https://github.com/TexasInstruments/ot-ti.git
 	branch = main
-	platforms = cc13xx_26xx
+	platforms = cc13xx_26xx,cc27xx
 [submodule "third_party/nxp/mw320_sdk/repo"]
 	path = third_party/nxp/mw320_sdk/repo
 	url = https://github.com/nxptest/mw320_sdk

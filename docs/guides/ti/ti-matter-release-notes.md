@@ -1,4 +1,4 @@
-# Release Notes for matter-v1.2-ti-1.0-EA-1.0
+# Release Notes for matter-v1.2-ti-1.0-EA-1.1
 
 This Texas Instruments Matter GitHub repository contains the software
 development tools that enable engineers to develop Matter Device and is the
@@ -32,11 +32,12 @@ Here are more details for a given device classified as "Evaluation Only":
 
 ## What's New
 
--   MATTER-189: Enable Matter over Thread on CC27xx platform
+-   None
 
 ## Fixed Issues
 
--   None
+-   MATTER-403: Enable automatic OT-TI submodule initialization for CC27xx
+    platform
 
 ## Known Issues
 
@@ -44,11 +45,14 @@ Here are more details for a given device classified as "Evaluation Only":
 
 ## Versioning
 
-This Product follows a version format, {Matter_Spec_Version}-{MM}.{mm}
+This Product follows a version format,
+matter-{Matter_Spec_Version}-ti-{MM}.{mm}-{EA-MM}.{EA-mm}
 
 -   Matter_Spec_Version is the Matter spec version
--   MM - major release version
--   mm - minor release version
+-   MM - TI GA major release version
+-   mm - TI GA minor release version
+-   EA-MM - TI EA major release version
+-   EA-mm - TI EA minor release version
 
 # Operating System Support
 
