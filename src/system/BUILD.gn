@@ -23,6 +23,7 @@ import("${chip_root}/build/chip/tests.gni")
 import("${chip_root}/src/platform/device.gni")
 import("system.gni")
 
+
 if (chip_system_config_use_lwip) {
   import("//build_overrides/lwip.gni")
 }
@@ -197,7 +198,9 @@ source_set("system_config_header") {
       if (chip_device_platform == "bl702l") {
         public_deps += [ "${bouffalolab_iot_sdk_build_root}/bl702l:bl_iot_sdk" ]
       }
-
+      if (chip_device_platform == "cc13x4_26x4") {
+        public_deps += [ "${ti_simplelink_sdk_build_root}:ti_simplelink_sdk" ]
+      }
       # Add platform here as needed.
     }
   }

@@ -76,6 +76,25 @@ chip_openthread_ftd = true
     -   The custom OpenThread library is used to implement extra features, or
         when modifying the stack in anyway.
 
+    1. `ot_ti_lib_dir` Is set to an empty string
+
+        ```
+        ot_ti_lib_dir=""
+        ```
+
+    2. `chip_openthread_target` Is set to an empty string
+
+        ```
+        chip_openthread_target = ""
+        ```
+
+    3. `openthread_external_platform` Points to the OpenThread build dependency
+        ```
+        openthread_external_platform="${chip_root}/third_party/openthread/platforms/ti:libopenthread-ti"
+        ```
+
+-   **Custom OpenThread Library**:
+    * The custom OpenThread library is used to implement extra features, or when modifying the stack in anyway.
     1.  `ot_ti_lib_dir` Points to a library directory containing a custom
         `libopenthread-ftd/mtd` variant
 
@@ -104,7 +123,7 @@ In order to update the OpenThread configuration when building from source or a
 custom library, users may adjust features via the following configuration header
 file:
 
--   `${chip_root}/examples/platform/cc13x4_26x4/project_include/OpenThreadConfig.h`
+-   `${chip_root}/examples/platform/ti/cc13x4_26x4/project_include/OpenThreadConfig.h`
 
 Please refer to TI's standalone OpenThread Application build process for
 instructions on acquiring FTD/MTD libraries as they are automatically built when

@@ -56,7 +56,7 @@ class TIApp(Enum):
             raise Exception('Unknown app type: %r' % self)
 
     def BuildRoot(self, root, board):
-        return os.path.join(root, 'examples', self.ExampleName(), board.FamilyName())
+        return os.path.join(root, 'examples', self.ExampleName() + '/ti/' ,board.FamilyName())
 
 
 class TIBoard(Enum):
@@ -112,7 +112,6 @@ class TIBuilder(GnBuilder):
         if self.board == TIBoard.LP_EM_CC1354P10_6:
             if self.app in [TIApp.LOCK,
                             TIApp.LIGHTING,
-                            TIApp.PUMP,
                             TIApp.PUMP_CONTROLLER]:
                 suffixes = [".out", "-mcuboot.hex"]
             else:
