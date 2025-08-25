@@ -32,6 +32,8 @@ ALL_PLATFORMS = set([
     'bouffalolab',
     'cc13xx_26xx',
     'cc32xx',
+    'cc35xx',
+    'cc27xx',
     'darwin',
     'silabs',
     'esp32',

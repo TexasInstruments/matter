@@ -34,8 +34,12 @@ group("default") {
       deps += [ "${chip_root}/src/platform/bouffalolab/common:logging" ]
     } else if (chip_device_platform == "mt793x") {
       deps += [ "${chip_root}/src/platform/mt793x:logging" ]
+    } else if (chip_device_platform == "cc35xx") {
+      deps += [ "${chip_root}/src/platform/ti/cc35xx:logging" ]
     } else if (chip_device_platform == "cc13x4_26x4") {
-      deps += [ "${chip_root}/src/platform/ti/cc13xx_26xx/cc13x4_26x4:logging" ]
+      deps += [ "${chip_root}/src/platform/ti/cc13x4_26x4:logging" ]
+    } else if (chip_device_platform == "cc27xx") {
+      deps += [ "${chip_root}/src/platform/ti/cc27xx:logging" ]
     } else if (chip_device_platform == "ameba") {
       deps += [ "${chip_root}/src/platform/Ameba:logging" ]
     } else if (chip_device_platform == "asr") {

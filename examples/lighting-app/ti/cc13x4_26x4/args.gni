@@ -21,6 +21,9 @@ ti_simplelink_sdk_target = get_label_info(":sdk", "label_no_toolchain")
 ti_simplelink_sysconfig_target =
     get_label_info(":sysconfig", "label_no_toolchain")
 
+app_data_model =
+    "${chip_root}/examples/lighting-app/ti/cc13x4_26x4/data_model:ti-lighting"
+
 ti_simplelink_board = "LP_EM_CC1354P10_6"
 
 if (ti_simplelink_board == "CC2674R10") {
@@ -48,8 +51,7 @@ openthread_external_platform =
 
 # When using TI Certified Openthread libs set to ${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert
 # For source builds, set to empty string.
-chip_openthread_target =
-    "${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert"
+chip_openthread_target = ""
 
 # Enable CHIP Logging
 chip_progress_logging = true

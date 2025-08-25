@@ -33,8 +33,6 @@ chip_openthread_ftd = true
 
 -   **TI Certified OpenThread Library**:
 
-    -   Typically this is used for development.
-
     1. `ot_ti_lib_dir` Is set to an empty string
 
         ```
@@ -52,7 +50,9 @@ chip_openthread_ftd = true
         `openthread_external_platform="${chip_root}/third_party/openthread/platforms/ti:libopenthread-ti"`
         ```
 
--   **OpenThread Library From Source**:
+-   **OpenThread Library From Source**: This configuration builds Openthread
+    from source based on the
+    `${chip_root}/third_party/openthread/ot-ti/openthread` directory
 
     1. `ot_ti_lib_dir` Is set to an empty string
 
@@ -66,7 +66,31 @@ chip_openthread_ftd = true
         chip_openthread_target = ""
         ```
 
-    3. `openthread_external_platform` Points to the OpenThread build dependency
+    3. `openthread_external_platform` Points to the TI OpenThread build
+       dependency
+        ```
+        openthread_external_platform="${chip_root}/third_party/openthread/platforms/ti:libopenthread-ti"
+        ```
+
+-   **Custom OpenThread Library**:
+
+    -   The custom OpenThread library is used to implement extra features, or
+        when modifying the stack in anyway.
+
+    1. `ot_ti_lib_dir` Is set to an empty string
+
+        ```
+        ot_ti_lib_dir=""
+        ```
+
+    2. `chip_openthread_target` Is set to an empty string
+
+        ```
+        chip_openthread_target = ""
+        ```
+
+    3. `openthread_external_platform` Points to the TI OpenThread build
+       dependency
         ```
         openthread_external_platform="${chip_root}/third_party/openthread/platforms/ti:libopenthread-ti"
         ```

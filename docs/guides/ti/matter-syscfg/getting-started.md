@@ -28,6 +28,14 @@ following line above the `/* Modules */` comment:
 // @cliArgs --product <path to SDK>/.metadata/product.json --board /ti/boards/LP_EM_CC1354P10_6 --rtos freertos
 ```
 
+The board in this case (and rest of document) is "LP_EM_CC1354P10_6", and should
+be adjusted based on the target device. Other boards include:
+
+-   LP_EM_CC1354P10_1
+-   LP_EM_CC2745R10_Q1 (Note: This LP can be used to evaluate the TI CC2755 device for Matter product development)
+- 	LP_EM_CC2755P20
+- 	LP_EM_CC35x1
+
 As an example, after adding the necessary `<path to SDK>`, it would look like:
 
 ```
@@ -35,6 +43,7 @@ As an example, after adding the necessary `<path to SDK>`, it would look like:
 ```
 
 If the file (product.json) is not found, then you may need to first initialize the submodules, which should pull in the code for `ti_simplelink_sdk/repo_cc13xx_cc26xx` (and other relevant submodules):
+For CC35x1 the TI SDK needs to be manually installed and placed at `<matter_repo>/third_party/ti_simplelink_sdk/repo_cc35xx/`
 
 ```
 git submodule update --init

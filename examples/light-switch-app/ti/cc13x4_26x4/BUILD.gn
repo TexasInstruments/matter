@@ -83,7 +83,7 @@ ti_simplelink_executable("light-switch_app") {
     "${project_dir}/src/main.cpp",
   ]
 
-  public = [ "${chip_root}/src/platform/ti/cc13xx_26xx/DefaultTestEventTriggerDelegate.h" ]
+  public = [ "${chip_root}/src/platform/ti/DefaultTestEventTriggerDelegate.h" ]
 
   deps = [
     ":sdk",

@@ -1,0 +1,94 @@
+/*
+ *
+ *    Copyright (c) 2020 Project CHIP Authors
+ *    All rights reserved.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+/**
+ * Import the modules used in this configuration.
+ */
+const FreeRTOS = scripting.addModule("/freertos/FreeRTOS");
+const ActionReq = scripting.addModule("/ti/vendorutils/Action/ActionReq");
+const UART2    = scripting.addModule("/ti/drivers/UART2");
+const UART21   = UART2.addInstance();
+const UART22   = UART2.addInstance();
+const Button    = scripting.addModule("/ti/drivers/apps/Button", {}, false);
+const Button1   = Button.addInstance();
+const Button2   = Button.addInstance();
+const LED       = scripting.addModule("/ti/drivers/apps/LED", {}, false);
+const LED1      = LED.addInstance();
+const LED2      = LED.addInstance();
+const LED3      = LED.addInstance();
+const Settings = scripting.addModule("/ti/posix/freertos/Settings");
+const EMMap     = scripting.addModule("/ti/externalmemory/EMMap/EMMap");
+const OTFDE     = scripting.addModule("/ti/externalmemory/OTFDE");
+const XSPI      = scripting.addModule("/ti/externalmemory/XSPI");
+
+/**
+ * Write custom configuration values to the imported modules.
+ */
+FreeRTOS.useTimeSlicing = true;
+FreeRTOS.heapSize       = 0x00032000;
+FreeRTOS.rovQueueEnabled = true;
+
+ActionReq.primary_vendor_image = true;
+ActionReq.primary_vendor_image_validate = false;
+
+XSPI.use_hw             = "IS25WJ032F";
+XSPI.xspi.clk.$assign   = "GPIO24";
+XSPI.xspi.flash.$assign = "GPIO20";
+XSPI.xspi.data0.$assign = "GPIO25";
+XSPI.xspi.data1.$assign = "GPIO21";
+XSPI.xspi.data2.$assign = "GPIO22";
+XSPI.xspi.data3.$assign = "GPIO23";
+
+UART21.$name                     = "CONFIG_UART2_0";
+UART21.$hardware                 = system.deviceData.board.components.XDS110UART;
+UART21.uart.dmaTxChannel.$assign = "DMA_CH2";
+UART21.uart.dmaRxChannel.$assign = "DMA_CH3";
+
+UART22.$name = "CONFIG_UART2_1";
+
+Button1.$name = "CONFIG_BUTTON_0";
+Button1.button.$assign = "boosterpack.19";
+
+Button2.$name = "CONFIG_BUTTON_1";
+Button2.button.$assign = "boosterpack.40";
+
+LED1.$hardware = system.deviceData.board.components.LED_RED;
+LED1.$name     = "CONFIG_LED_0";
+
+LED2.$hardware = system.deviceData.board.components.LED_GREEN;
+LED2.$name     = "CONFIG_LED_1";
+
+LED3.$hardware = system.deviceData.board.components.LED_BLUE;
+LED3.$name     = "CONFIG_LED_2";
+
+/**
+ * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
+ * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
+ * re-solve from scratch.
+ */
+UART21.uart.$suggestSolution              = "UART1";
+UART21.uart.txPin.$suggestSolution        = "GPIO5";
+UART21.uart.rxPin.$suggestSolution        = "GPIO6";
+UART22.uart.$suggestSolution              = "UART0";
+UART22.uart.dmaTxChannel.$suggestSolution = "DMA_CH1";
+UART22.uart.dmaRxChannel.$suggestSolution = "DMA_CH0";
+UART22.uart.txPin.$suggestSolution        = "boosterpack.4";
+UART22.uart.rxPin.$suggestSolution        = "boosterpack.3";
+LED1.ledPin.$suggestSolution              = "boosterpack.31";
+LED2.ledPin.$suggestSolution              = "boosterpack.17";
+LED3.ledPin.$suggestSolution              = "boosterpack.36";

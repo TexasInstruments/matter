@@ -43,7 +43,7 @@ To start development with Matter, refer to the following:
     [Matter Thread getting started](https://dev.ti.com/tirex/explore/node?a=AfkT0vQ__5.30.00.00&node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 
 -   Get started with Matter over Wi-Fi,
-    [Matter Wi-Fi getting started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
+    [Matter Wi-Fi getting started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1556339/faq-cc3551e-matter----getting-started-guide)
     -   Matter Over Wi-Fi in this release is for evaluation purposes only (and
         not recommended for production).
 
@@ -54,11 +54,6 @@ Start off with `ti-matter-release-notes` for important information about
 versioning, known issues, and more.
 
 -   [ti-matter-release-notes](./docs/guides/ti/ti-matter-release-notes.md)
-
-**Optional**, if migration is needed, locate the `matter-migration-guide` folder
-and reference:
-
--   [matter_cc2674_migration](./docs/guides/ti/matter-migration-guide/matter_cc2674_migration.md)
 
 Then navigate to the `matter-users-guide` folder and read in the following
 order:

@@ -41,7 +41,7 @@ extern "C" {
 #include <app/clusters/ota-requestor/DefaultOTARequestor.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorDriver.h>
 #include <app/clusters/ota-requestor/DefaultOTARequestorStorage.h>
-#include <platform/ti/cc13xx_26xx/OTAImageProcessorImpl.h>
+#include <platform/ti/OTAImageProcessorImpl.h>
 #endif
 
 #include <lib/support/CHIPMem.h>
@@ -62,7 +62,7 @@ extern "C" {
 
 #include <app/TestEventTriggerDelegate.h>
 #include <app/clusters/general-diagnostics-server/GenericFaultTestEventTriggerHandler.h>
-#include <src/platform/ti/cc13xx_26xx/DefaultTestEventTriggerDelegate.h>
+#include <src/platform/ti/DefaultTestEventTriggerDelegate.h>
 
 #include <ti/drivers/apps/Button.h>
 #include <ti/drivers/apps/LED.h>

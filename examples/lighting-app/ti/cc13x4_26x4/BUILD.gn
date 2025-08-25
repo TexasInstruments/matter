@@ -93,12 +93,12 @@ ti_simplelink_executable("lighting_app") {
     "${project_dir}/src/main.cpp",
   ]
 
-  public = [ "${chip_root}/src/platform/ti/cc13xx_26xx/DefaultTestEventTriggerDelegate.h" ]
+  public = [ "${chip_root}/src/platform/ti/DefaultTestEventTriggerDelegate.h" ]
 
   deps = [
     ":sdk",
     ":sysconfig",
-    "${chip_root}/examples/lighting-app/lighting-common",
+    "${chip_root}/examples/lighting-app/ti/cc13x4_26x4/data_model:ti-lighting",
     "${chip_root}/examples/platform/ti/cc13x4_26x4:ti-attestation-credentials",
     "${chip_root}/src/lib",
     "${chip_root}/src/platform/logging:default",

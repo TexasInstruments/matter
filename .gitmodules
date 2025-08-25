@@ -196,11 +196,16 @@
 	url = https://github.com/TexasInstruments/cc32xx_open_sdk.git
 	branch = main
 	platforms = cc32xx
+[submodule "third_party/ti_simplelink_sdk/repo_cc23xx_cc27xx"]
+	path = third_party/ti_simplelink_sdk/repo_cc23xx_cc27xx
+	url = https://github.com/TexasInstruments/simplelink-lowpower-f3-sdk.git
+	branch = lpf3-9.20_ea
+	platforms = cc27xx
 [submodule "third_party/openthread/ot-ti"]
 	path = third_party/openthread/ot-ti
 	url = https://github.com/TexasInstruments/ot-ti.git
-	branch = main
-	platforms = cc13xx_26xx
+	branch = thread-v1.4-ti
+	platforms = cc13xx_26xx,cc27xx
 [submodule "third_party/nxp/mw320_sdk/repo"]
 	path = third_party/nxp/mw320_sdk/repo
 	url = https://github.com/nxptest/mw320_sdk
@@ -345,3 +350,7 @@
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
 	platforms = linux,darwin
+[submodule "third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx/repo"]
+	path = third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx/repo
+	url = https://github.com/Mbed-TLS/mbedtls.git
+	platforms = cc35xx

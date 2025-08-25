@@ -81,7 +81,7 @@ ti_simplelink_executable("pump_controller_app") {
     "${project_dir}/main/main.cpp",
   ]
 
-  public = [ "${chip_root}/src/platform/ti/cc13xx_26xx/DefaultTestEventTriggerDelegate.h" ]
+  public = [ "${chip_root}/src/platform/ti/DefaultTestEventTriggerDelegate.h" ]
 
   deps = [
     ":sdk",

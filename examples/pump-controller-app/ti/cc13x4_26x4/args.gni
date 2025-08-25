@@ -40,8 +40,7 @@ openthread_external_platform =
 
 # When using TI Certified Openthread libs set to ${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert
 # For source builds, set to empty string.
-chip_openthread_target =
-    "${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert"
+chip_openthread_target =""
 
 chip_openthread_ftd = true
 

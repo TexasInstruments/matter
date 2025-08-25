@@ -34,7 +34,8 @@ assert(lwip_platform == "external" || lwip_platform == "standalone" ||
            lwip_platform == "psoc6" || lwip_platform == "cyw30739" ||
            lwip_platform == "bl602" || lwip_platform == "mw320" ||
            lwip_platform == "bl702" || lwip_platform == "bl702l" ||
-           lwip_platform == "mt793x" || lwip_platform == "asr",
+           lwip_platform == "mt793x" || lwip_platform == "asr" ||
+           lwip_platform == "cc35xx",
        "Unsupported lwIP platform: ${lwip_platform}")
 
 if (lwip_platform != "external") {
@@ -47,6 +48,8 @@ if (lwip_platform != "external") {
 if (lwip_platform == "cc13xx_26xx") {
   import("//build_overrides/ti_simplelink_sdk.gni")
 } else if (lwip_platform == "cc32xx") {
+  import("//build_overrides/ti_simplelink_sdk.gni")
+} else if (lwip_platform == "cc35xx") {
   import("//build_overrides/ti_simplelink_sdk.gni")
 } else if (lwip_platform == "silabs") {
   import("//build_overrides/efr32_sdk.gni")
@@ -202,7 +205,11 @@ if (current_os == "zephyr" || current_os == "mbed") {
     if (lwip_platform == "standalone") {
       public += [ "standalone/arch/sys_arch.h" ]
       sources += [ "standalone/sys_arch.c" ]
-    } else if (lwip_platform == "cyw30739") {
+    } else if(lwip_platform == "cc35xx"){
+      public += [ "cc35xx/lwippools.h",
+                  "cc35xx/arch/sys_arch.h" ]
+      sources += [ "cc35xx/sys_arch.c" ]
+    }else if (lwip_platform == "cyw30739") {
     } else if (lwip_platform == "mt793x") {
     } else {
       public += [
@@ -219,6 +226,8 @@ if (current_os == "zephyr" || current_os == "mbed") {
       public_deps += [ "${ti_simplelink_sdk_build_root}:ti_simplelink_sdk" ]
       sources +=
           [ "${chip_root}/third_party/lwip/repo/lwip/src/apps/mdns/mdns.c" ]
+    } else if (lwip_platform == "cc35xx") {
+      public_deps += [ "${ti_simplelink_sdk_build_root}:ti_simplelink_sdk" ]
     } else if (lwip_platform == "silabs") {
       public_deps += [ "${efr32_sdk_build_root}:efr32_sdk" ]
 

@@ -34,7 +34,7 @@ lwip_debug = false
 
 chip_enable_ota_requestor = true
 
-chip_openthread_ftd = false
+chip_openthread_ftd = true
 
 #NOTE: LwIP is no longer supported, these options must stay the same
 chip_system_config_use_open_thread_inet_endpoints = true
@@ -48,8 +48,7 @@ openthread_external_platform =
 
 # When using TI Certified Openthread libs set to ${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert
 # For source builds, set to empty string.
-chip_openthread_target =
-    "${chip_root}/third_party/openthread/platforms/ti:ot-ti-cert"
+chip_openthread_target = ""
 
 # Enable CHIP Logging
 chip_progress_logging = true

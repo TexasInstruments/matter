@@ -14,11 +14,17 @@ matter-users-guide/enabling_icd_on_ti_devices.md
 
 The Texas Instruments Matter platform is based on the TI SimpleLink™ SDK.
 
-The following diagram is a simplified representation of a Matter application
-which is built on the TI Platform.
+The following diagram is a simplified representation of a Matter over Thread application which is built on the TI Platform.
 
 <div style="text-align: center;">
   <img src="../images/matter_ti_overview_simplified.png" width=30%>
+</div>
+
+
+The following diagram is a simplified representation of a Matter over Wi-Fi application which is built on the TI Platform.
+
+<div style="text-align: center;">
+  <img src="matter-users-guide/images/matter_over_wi_fi_sw_block_diagram.png" width=40%>
 </div>
 
 ## Texas Instruments SimpleLink SDK
@@ -39,7 +45,9 @@ www.ti.com/simplelink.
 
 <hr>
 
-## Bluetooth LE and Thread stacks
+## Matter over Thread
+
+### Bluetooth LE and Thread stacks
 
 In the TI example applications the Bluetooth Low Energy protocol is used to
 provision the Thread protocol to enable Matter communication. Then Thread is
@@ -59,7 +67,7 @@ Instruments Dynamic Multi-protocol Manager.
 
 <hr>
 
-## MbedTLS
+### MbedTLS
 
 The MbedTLS library is used by OpenThread and Matter for a wide variety of
 protocols. This ranges from basic AES and SHA to cryptographic protocols like
@@ -71,7 +79,7 @@ configuration file.
 
 <hr>
 
-## Matter Stack to TI Platform Interface
+### Matter Stack to TI Platform Interface
 
 Matter Stack interacts with OpenThread, and the TI-BLE stack to achieve
 the protocol and application functionality. A Bluetooth LE profile is registered
@@ -89,14 +97,29 @@ by the platform implementation files.
 
 <hr>
 
+## Matter over Wi-Fi
+
+### NimBLE Host Stack
+Will be leveraged for BLE based Matter commissioning and application specific purposes
+
+### MbedTLS
+
+The MbedTLS library is used by Matter for a wide variety of protocols.
+
+### Matter Stack to TI Platform Interface
+
+Matter Stack interacts with Wi-Fi Driver, and other device specific feature drivers to achieve
+the protocol and application functionality. 
+
 ## Matter Development Resources
 
 Below are several resources available for Matter development:
 
 -   [Matter Protocol Overview](https://handbook.buildwithmatter.com/howitworks/roles/)
 -   [Matter Build Guide](../BUILDING.md)
--   [Matter over Thread Getting Started](https://dev.ti.com/tirex/explore/node?node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
--   [TI Matter over Wi-Fi Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
+-   [Matter over Thread Getting Started](https://dev.ti.com/tirex/explore/node?node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)  
+-   [TI Matter over Wi-Fi For CC323x Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
+-  [TI Matter over Wi-Fi For CC335x Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1556339/faq-cc3551e-matter----getting-started-guide)
 -   [TI Matter Application Development](https://dev.ti.com/tirex/explore/node?node=A__AXNOPYikmtBCHJ-L6eRivA__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 -   [TI Matter OTA Guide](https://dev.ti.com/tirex/explore/node?node=A__AYTiKtu5heqgH4KPFa.6RQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 
@@ -107,18 +130,17 @@ Below are several resources available for Matter development:
 Sample Matter applications are provided for the TI platform. These can be used
 as reference for your own application.
 
-| Example                           | Device Support                                                                |
-|-----------------------------------|:-----------------------------------------------------------------------------:|
-| lighting-app                      | [CC13x4_26x4](../../../examples/lighting-app/ti/cc13x4_26x4/README.md)        |
-| light-switch-app                  | [CC13x4_26x4](../../../examples/light-switch-app/ti/cc13x4_26x4/README.md)    |
-| lock-app                          | [CC13x4_26x4](../../../examples/lock-app/ti/cc13x4_26x4/README.md)            |
-| pump-app                          | [CC13x4_26x4](../../../examples/pump-app/ti/cc13x4_26x4/README.md)            |
-| pump-controller-app               | [CC13x4_26x4](../../../examples/pump-controller-app/ti/cc13x4_26x4/README.md) |
-| generic-app                       | [CC13x4_26x4](../../../ti_examples/generic-app/cc13x4_26x4/README.md)         |
-| lighting-app with AppoBLE feature | [CC13x4_26x4](../../../ti_examples/lighting-app/cc13x4_26x4/README.md)        |
+| Example                           | Device Support                                                                |                                                                  |  |
+|-----------------------------------|:-----------------------------------------------------------------------------:|:----------------------------------------------------------------:|:---:|
+| lighting-app                      | [CC13x4_26x4](../../../examples/lighting-app/ti/cc13x4_26x4/README.md)        | [CC27xx](../../../examples/lighting-app/ti/cc27xx/README.md)     | [CC35xxE](../../../examples/lighting-app/ti/cc35xx/README.md)  |
+| light-switch-app                  | [CC13x4_26x4](../../../examples/light-switch-app/ti/cc13x4_26x4/README.md)    | [CC27xx](../../../examples/light-switch-app/ti/cc27xx/README.md) | |
+| lock-app                          | [CC13x4_26x4](../../../examples/lock-app/ti/cc13x4_26x4/README.md)            | [CC27xx](../../../examples/lock-app/ti/cc27xx/README.md)         | |
+| pump-app                          | [CC13x4_26x4](../../../examples/pump-app/ti/cc13x4_26x4/README.md)            | [CC27xx](../../../examples/pump-app/ti/cc27xx/README.md)         | |
+| pump-controller-app               | [CC13x4_26x4](../../../examples/pump-controller-app/ti/cc13x4_26x4/README.md) | [CC27xx](../../../examples/pump-controller-app/ti/cc27xx/README.md)| |
+| generic-app                       | [CC13x4_26x4](../../../ti_examples/generic-app/cc13x4_26x4/README.md)         | ||
+| lighting-app with AppoBLE feature | [CC13x4_26x4](../../../ti_examples/lighting-app/cc13x4_26x4/README.md)        | ||
 
 <hr>
-
 ### Build system
 
 The TI platform uses GN to generate ninja build scripts. Build files have
@@ -127,7 +149,9 @@ SimpleLink SDK.
 
 <hr>
 
-## Factory Data Programming Tool
+## Matter Over Thread Configuration
+
+### Factory Data Programming Tool
 
 For instructions on how to program custom factory data on TI devices, please
 refer to the guide linked below.
@@ -136,7 +160,7 @@ refer to the guide linked below.
 
 <hr>
 
-## Intermittently Connected Devices
+### Intermittently Connected Devices
 
 For instructions on how to use the Matter ICD feature on TI devices, please
 refer to the guide linked below.
@@ -145,7 +169,7 @@ refer to the guide linked below.
 
 <hr>
 
-## Matter OpenThread Library Configuration
+### Matter OpenThread Library Configuration
 
 For instructions on how to configure the OpenThread build configuration for a
 Matter application, please refer to the guide linked below.
@@ -154,7 +178,7 @@ Matter application, please refer to the guide linked below.
 
 <hr>
 
-## TI Matter Product Certification
+### TI Matter Product Certification
 
 For instructions on how to certify both Software and Hardware Matter components,
 please refer to the guide linked below.
@@ -163,7 +187,7 @@ please refer to the guide linked below.
 
 <hr>
 
-### TI Support
+## TI Support
 
 For technical support, please consider creating a post on TI's [E2E forum][e2e].
 Additionally, we welcome any feedback.

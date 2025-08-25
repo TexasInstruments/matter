@@ -13,19 +13,13 @@ CSA member and take a product through certification.
 
 ## Matter Stack Certification
 
-TI's Matter solution is a Matter certified hardware solution.
-Matter certification was done for the **lighting application**
-specifically.
+TI's Matter solution is a Matter certifiable hardware solution.
+
 
 ## Leveraging TI's Thread Certification for your Matter End product Certification
 
-Customers using TI provided certified library for their Matter projects as described in the document `ti_openthread_library_usage.md` can leverage certification by similarity for Thread certification. Customers will need to use the TI certification ID for their product as listed in the table below.
-Texas Instruments Thread Certification ID's
+Customers using TI provided certified library in production releases for their Matter projects as described in the document `ti_openthread_library_usage.md` can leverage certification by similarity for Thread certification. Refer to [release notes](../ti-matter-release-notes.md) for Thread Certification ID for your platform.  
 
-| Platform         | Configuration     | CID      |
-|------------------|:-----------------:|:--------:|
-| CC1354 or CC2674 | FTD               | 13A229   |
-| CC1354 or CC2674 | MTD               | 13A230   |
 
 
 ## Matter v1.4 Certification

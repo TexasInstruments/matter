@@ -52,7 +52,7 @@ if (chip_project_config_include_dirs == [] &&
   chip_project_config_include_dirs += [ "${chip_root}/config/standalone" ]
 }
 
-if (chip_device_platform == "cc13x4_26x4") {
+if (chip_device_platform == "cc13x4_26x4" || chip_device_platform == "cc27xx") {
   import("//build_overrides/ti_simplelink_sdk.gni")
 } else if (chip_device_platform == "efr32") {
   import("//build_overrides/efr32_sdk.gni")
@@ -198,7 +198,8 @@ source_set("system_config_header") {
       if (chip_device_platform == "bl702l") {
         public_deps += [ "${bouffalolab_iot_sdk_build_root}/bl702l:bl_iot_sdk" ]
       }
-      if (chip_device_platform == "cc13x4_26x4") {
+      if (chip_device_platform == "cc13x4_26x4" ||
+          chip_device_platform == "cc27xx") {
         public_deps += [ "${ti_simplelink_sdk_build_root}:ti_simplelink_sdk" ]
       }
       # Add platform here as needed.

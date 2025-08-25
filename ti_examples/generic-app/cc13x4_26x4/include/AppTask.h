@@ -30,7 +30,7 @@
 
 #include <ti/drivers/apps/Button.h>
 #ifdef TI_FACTORY_DATA
-#include <platform/ti/cc13xx_26xx/FactoryDataProvider.h>
+#include <platform/ti/FactoryDataProvider.h>
 #endif
 
 // Application-defined error codes in the CHIP_ERROR space.
