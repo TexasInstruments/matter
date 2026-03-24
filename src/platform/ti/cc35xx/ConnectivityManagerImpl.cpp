@@ -182,6 +182,14 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
             Report("\n\r--> WlanStackEventHandler WLAN_EVENT_CONNECT\n\r");
             WlanEventConnect_t  *pWlanEventConnect = &pWlanEvent->Data.Connect;
 
+            // Check connection status
+            if (pWlanEventConnect->Status < 0)
+            {
+                Report("\n\r[WLAN EVENT HANDLER] Connection failed with status: %d\n\r", pWlanEventConnect->Status);
+                osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
+                break;
+            }
+
             char ssid[WLAN_SSID_MAX_LENGTH+1];
             char bssid[WLAN_BSSID_LENGTH+1];
 
@@ -203,6 +211,13 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
                 bssid[5],
                 pWlanEventConnect->Channel);
 
+            // Set connection status bit
+            SET_STATUS_BIT(app_CB.Status, STATUS_BIT_STA_CONNECTION);
+
+            // Copy connection info
+            os_memcpy(app_CB.CON_CB.ConnectionSSID, pWlanEventConnect->SsidName, pWlanEventConnect->SsidLen);
+            os_memcpy(app_CB.CON_CB.ConnectionBSSID, pWlanEventConnect->Bssid, WLAN_BSSID_LENGTH);
+
             staif = network_get_sta_if();
             if(staif != NULL)
             {
@@ -216,6 +231,13 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
         case WLAN_EVENT_DISCONNECT:
         {
             Report("\n\r--> WlanStackEventHandler WLAN_EVENT_DISCONNECT\n\r");
+            WlanEventDisconnect_t *pWlanEventDisconnect = &pWlanEvent->Data.Disconnect;
+
+            Report("[WLAN EVENT HANDLER] STA Disconnected - Reason Code: %d\n\r",
+                   pWlanEventDisconnect->ReasonCode);
+
+            CLR_STATUS_BIT(app_CB.Status, STATUS_BIT_STA_CONNECTION);
+            osi_SyncObjSignal(&app_CB.CON_CB.disconnectEventSyncObj);
         }
         break;
         case WLAN_EVENT_SCAN_RESULT:
@@ -223,22 +245,28 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
             Report("\n\r--> WlanStackEventHandler WLAN_EVENT_SCAN_RESULT\n\r");
             WlanEventScanResult_t  *pEventScanResult = &pWlanEvent->Data.ScanResult;
 
-            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_SCAN_RESULT\n\r");
             uint32_t numResults = pEventScanResult->NetworkListResultLen;
             Report("[WLAN EVENT HANDLER] Number of scan results received: %d \n\r", numResults);
+            Report("[WLAN SCAN] Results:\n\r");
 
             char ssid[WLAN_SSID_MAX_LENGTH+1];
             char bssid[WLAN_BSSID_LENGTH+1];
+            bool targetApFound = false;
 
             for(int index = 0; index < numResults ; index++)
             {
-
                 os_memset(ssid, 0, sizeof(ssid));
                 os_memcpy(ssid, pEventScanResult->NetworkListResult[index].Ssid, pEventScanResult->NetworkListResult[index].SsidLen);
                 os_memset(bssid, 0, sizeof(bssid));
                 os_memcpy(bssid, pEventScanResult->NetworkListResult[index].Bssid, WLAN_BSSID_LENGTH);
 
-                Report("SCAN : %02d : %32s : %02x:%02x:%02x:%02x:%02x:%02x : %2d, %04x, %3d \n\r",
+                // Check if this is our target AP
+                bool isTargetAP = (strcmp(ssid, AP_SSID) == 0);
+                if (isTargetAP) {
+                    targetApFound = true;
+                }
+
+                Report("SCAN : %02d : %32s : %02x:%02x:%02x:%02x:%02x:%02x : CH=%2d, SEC=%04x, RSSI=%3d %s\n\r",
                     index,
                     ssid,
                     bssid[0],
@@ -249,8 +277,21 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
                     bssid[5],
                     pEventScanResult->NetworkListResult[index].Channel,
                     pEventScanResult->NetworkListResult[index].SecurityInfo,
-                    pEventScanResult->NetworkListResult[index].Rssi);
+                    pEventScanResult->NetworkListResult[index].Rssi,
+                    isTargetAP ? "<<< TARGET AP" : "");
             }
+
+            if (!targetApFound)
+            {
+                Report("\n\r[WARNING] Target AP '%s' NOT FOUND in scan results!\n\r", AP_SSID);
+            }
+            else
+            {
+                Report("\n\r[INFO] Target AP '%s' found in scan results\n\r", AP_SSID);
+            }
+
+            // Signal scan completion
+            osi_SyncObjSignal(&app_CB.eventCompletedScanObj);
         }
         break;
         case WLAN_EVENT_ADD_PEER:
@@ -329,9 +370,100 @@ void WlanStackEventHandler(WlanEvent_t *pWlanEvent)
             Report("\n\r--> WlanStackEventHandler WLAN_EVENT_SEND_ACTION_DONE\n\r");
         }
         break;
+        case WLAN_EVENT_EXTENDED_SCAN_RESULT:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_EXTENDED_SCAN_RESULT\n\r");
+        }
+        break;
+        case WLAN_EVENT_P2P_GROUP_STARTED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_P2P_GROUP_STARTED\n\r");
+        }
+        break;
+        case WLAN_EVENT_P2P_GROUP_REMOVED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_P2P_GROUP_REMOVED\n\r");
+        }
+        break;
+        case WLAN_EVENT_P2P_SCAN_COMPLETED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_P2P_SCAN_COMPLETED\n\r");
+        }
+        break;
+        case WLAN_EVENT_P2P_GROUP_FORMATION_FAILED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_P2P_GROUP_FORMATION_FAILED\n\r");
+        }
+        break;
+        case WLAN_EVENT_P2P_PEER_NOT_FOUND:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_P2P_PEER_NOT_FOUND\n\r");
+        }
+        break;
+        case WLAN_EVENT_CONNECT_PERIODIC_SCAN_COMPLETE:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_CONNECT_PERIODIC_SCAN_COMPLETE\n\r");
+        }
+        break;
+        case WLAN_EVENT_FW_CRASH:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_FW_CRASH\n\r");
+        }
+        break;
+        case WLAN_EVENT_COMMAND_TIMEOUT:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_COMMAND_TIMEOUT\n\r");
+        }
+        break;
+        case WLAN_EVENT_GENERAL_ERROR:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_GENERAL_ERROR\n\r");
+        }
+        break;
+        case WLAN_EVENT_BSS_TRANSITION_INITIATED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_BSS_TRANSITION_INITIATED\n\r");
+        }
+        break;
+        case WLAN_EVENT_PEER_AGING:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_PEER_AGING\n\r");
+        }
+        break;
+        case WLAN_EVENT_ERROR:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_ERROR\n\r");
+        }
+        break;
+        case WLAN_EVENT_AUTHENTICATION_REJECTED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_AUTHENTICATION_REJECTED\n\r");
+            Report("\n\r[WLAN EVENT] Authentication rejected - check credentials\n\r");
+            // Signal connection event to unblock waiting code
+            osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
+        }
+        break;
+        case WLAN_EVENT_ASSOCIATION_REJECTED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_ASSOCIATION_REJECTED\n\r");
+            Report("\n\r[WLAN EVENT] Association rejected\n\r");
+            // Signal connection event to unblock waiting code
+            osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
+        }
+        break;
+        case WLAN_EVENT_WPS_INVALID_PIN:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_WPS_INVALID_PIN\n\r");
+        }
+        break;
+        case WLAN_EVENT_AP_WPS_START_FAILED:
+        {
+            Report("\n\r--> WlanStackEventHandler WLAN_EVENT_AP_WPS_START_FAILED\n\r");
+        }
+        break;
         default:
         {
-            Report("\n\r--> WlanStackEventHandler !! UNEXPECTED !!\n\r");
+            Report("\n\r--> WlanStackEventHandler !! UNEXPECTED !! Event ID: %d\n\r", pWlanEvent->Id);
         }
         break;
     }
@@ -382,6 +514,20 @@ int32_t initAppVariables(void)
         return(-1);
     }
 
+    ret = osi_SyncObjCreate(&app_CB.CON_CB.staRoleupSyncObj);
+    if(ret != 0)
+    {
+        SHOW_WARNING(ret, OS_ERROR);
+        return(-1);
+    }
+
+    ret = osi_SyncObjCreate(&app_CB.CON_CB.staRoledownSyncObj);
+    if(ret != 0)
+    {
+        SHOW_WARNING(ret, OS_ERROR);
+        return(-1);
+    }
+
     return(ret);
 }
 
@@ -396,7 +542,7 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
 
     //Initialize LWIP
     initAppVariables();
-    network_stack_init();
+    network_stack_init();    
 
     Report("\n\r\n\r");
     Report("**** CC35XX Wi-Fi Init ****\n\r");
@@ -408,93 +554,173 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
     ret = Wlan_Start(WlanStackEventHandler);
     if (ret == 0)
     {
+        SET_BIT_IN_BITMAP(ActiveNetIfBitMap, NET_IF_IS_UP);
         Report("Wlan_Start success!\n\r");
+
+        // Configure power management (ELP mode for CC35XX)
+        uint32_t powerManagement = (uint32_t)POWER_MANAGEMENT_ELP_MODE;
+        ret = Wlan_Set(WLAN_SET_POWER_MANAGEMENT, &powerManagement);
+        if (ret == 0)
+        {
+            Report("Power management (ELP mode) configured successfully\n\r");
+        }
+        else
+        {
+            Report("Power management configuration failed: %d\n\r", ret);
+        }
     }
     else
     {
         Report("Wlan_Start failed: %d\n\r", ret);
+        return CHIP_ERROR_INTERNAL;
     }
 
     Report("\n\r** Wlan_Set(WLAN_SET_TX_CTRL) **\n\r");
     WlanCtrlBlk_t CtrlBlkParam;
     CtrlBlkParam.TxSendPaceThresh = 1;
-    CtrlBlkParam.TransmitQOnTxComplete = 0;
-    CtrlBlkParam.TxSendPaceTimeoutMsec = 16;
-    Wlan_Set(WLAN_SET_TX_CTRL, &CtrlBlkParam);
+    CtrlBlkParam.TransmitQOnTxComplete = 1;  // Changed from 0 to 1 to match working example
+    CtrlBlkParam.TxSendPaceTimeoutMsec = 1;  // Changed from 16 to 1 to match working example
+    ret = Wlan_Set(WLAN_SET_TX_CTRL, &CtrlBlkParam);
     if (ret == 0)
     {
-        Report("Wlan_Set success!\n\r");
+        Report("Wlan_Set(WLAN_SET_TX_CTRL) success!\n\r");
     }
     else
     {
-        Report("Wlan_Set failed: %d\n\r", ret);
+        Report("Wlan_Set(WLAN_SET_TX_CTRL) failed: %d\n\r", ret);
     }
 
     Report("\n\r** Wlan_RoleUp(WLAN_ROLE_STA) **\n\r");
-    RoleUpApCmd_t RoleUpStaParams;
-    os_memset(&RoleUpStaParams, 0 , sizeof(RoleUpApCmd_t));
-    RoleUpStaParams.countryDomain[0] = '\0';
-    RoleUpStaParams.countryDomain[1] = '\0';
-    Wlan_RoleUp(WLAN_ROLE_STA, &RoleUpStaParams, WLAN_WAIT_FOREVER);
-    if (ret == 0)
+
+    // Check if network station is already active
+    if (IS_BIT_SET(ActiveNetIfBitMap, NET_IF_STA_BIT))
     {
-        Report("Wlan_RoleUp success!\n\r");
+        Report("\n\rNetwork Station Is Already Active.\n\r");
     }
     else
     {
-        Report("Wlan_RoleUp failed: %d\n\r", ret);
-    }
+        CLR_STATUS_BIT(app_CB.Status, STATUS_BIT_STA_CONNECTION);
 
-    //send callback to tcp
-    network_stack_add_if_sta(); 
-    app_CB.Role = WLAN_ROLE_STA;
+        RoleUpStaCmd_t RoleUpStaParams;
+        os_memset(&RoleUpStaParams, 0, sizeof(RoleUpStaCmd_t));
+
+        // Set 2.4G and 5G bands for CC35XX
+        uint8_t sta_wifi_band = (uint8_t)BAND_SEL_BOTH;
+        Wlan_Set(WLAN_SET_STA_WIFI_BAND, &sta_wifi_band);
+
+        // Configure WPS parameters (disabled by default for Matter)
+        RoleUpStaParams.wpsDisabled = TRUE;
+        RoleUpStaParams.countryDomain[0] = '\0';
+        RoleUpStaParams.countryDomain[1] = '\0';
+
+        // Add network interface and role up
+        network_stack_add_if_sta();
+
+        // Wait for network stack interface to be ready
+        ret = osi_SyncObjWait(&(app_CB.CON_CB.staRoleupSyncObj), OSI_WAIT_FOR_SECOND * 10);
+        if (OSI_OK != ret)
+        {
+            Report("\n\r[ERROR]_Init: Failed waiting for staRoleup sync object (%d)\n\r", ret);
+            network_stack_remove_if_sta();
+            return CHIP_ERROR_TIMEOUT;
+        }
+
+        ret = Wlan_RoleUp(WLAN_ROLE_STA, &RoleUpStaParams, WLAN_WAIT_FOREVER);
+        if (ret < 0)
+        {
+            network_stack_remove_if_sta();
+            Report("\n\r[ERROR]_Init: Wlan_RoleUp Failed with error code: %d\n\r", ret);
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        SET_BIT_IN_BITMAP(ActiveNetIfBitMap, NET_IF_STA_BIT);
+        app_CB.Role = WLAN_ROLE_STA;
+
+        // Short delay after role up
+        os_sleep(1, 0);
+
+        Report("Wlan_RoleUp success!\n\r");
+    }
 
     Report("\n\r** Wlan_Scan(BAND_SEL_BOTH, 30) **\n\r");
     scanCommon_t scanCommo;
     os_memset(&scanCommo, 0x0, sizeof(scanCommon_t));
-    
+
     //options are BAND_SEL_ONLY_2_4GHZ , BAND_SEL_ONLY_5GHZ , BAND_SEL_BOTH
     scanCommo.Band = BAND_SEL_BOTH;
 
+    // Clear scan sync object before starting scan
+    osi_SyncObjClear(&app_CB.eventCompletedScanObj);
+
     ret = Wlan_Scan(WLAN_ROLE_STA, &scanCommo, 30);
-    if (ret == 0)
+    if (ret != 0)
     {
-        Report("Wlan_Scan success!\n\r");
-    }
-    else
-    {
-        Report("Wlan_Scan failed: %d\n\r", ret);
+        Report("\n\r[ERROR]_Init: Wlan_Scan failed: %d\n\r", ret);
+        return CHIP_ERROR_INTERNAL;
     }
 
-    Report("Sleeping 10 seconds for scan results\n\r");
-    os_sleep(10,0);
+    Report("Wlan_Scan initiated, waiting for scan results...\n\r");
+
+    // Wait for scan completion with timeout (10 seconds)
+    ret = osi_SyncObjWait(&app_CB.eventCompletedScanObj, OSI_WAIT_FOR_SECOND * 10);
+    if (ret != OSI_OK)
+    {
+        Report("\n\r[ERROR]_Init: Scan timeout or failed (%d)\n\r", ret);
+        return CHIP_ERROR_TIMEOUT;
+    }
+
+    Report("Scan completed successfully\n\r");
 
     Report("\n\r** Wlan_Connect(SSID/TYPE/PSWD) **\n\r");
+
+    // Check if STA role is active before connecting
+    if (!IS_BIT_SET(ActiveNetIfBitMap, NET_IF_STA_BIT))
+    {
+        Report("\n\rNo STA role up, cannot connect\n\r");
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
+
+    // Clear the connect event sync object before attempting connection
+    osi_SyncObjClear(&(app_CB.CON_CB.connectEventSyncObj));
 
     ret = Wlan_Connect((const signed char *) AP_SSID,
                        strlen(AP_SSID),
                        NULL,
                        WLAN_SEC_TYPE,
                        AP_PASSWORD,
-                       strlen(AP_PASSWORD), 
+                       strlen(AP_PASSWORD),
                        0);
 
-    if (ret == 0)
+    if (ret != 0)
     {
-        Report("Wlan_Connect success!\n\r");
-    }
-    else
-    {
-        Report("Wlan_Connect failed: %d\n\r", ret);
+        Report("\n\r[ERROR]_Init: Wlan_Connect failed: %d\n\r", ret);
+        return CHIP_ERROR_INTERNAL;
     }
 
-    Report("Wait for callback for connection\n\r", ret);
-    while(isIp == 0) {
+    Report("Wlan_Connect initiated successfully!\n\r");
+
+    // Wait for connection event with timeout
+    if (!IS_STA_CONNECTED(app_CB.Status))
+    {
+        Report("Waiting for connection event...\n\r");
+        ret = osi_SyncObjWait(&(app_CB.CON_CB.connectEventSyncObj), OSI_WAIT_FOR_SECOND * 60);
+        if (ret != OSI_OK)
+        {
+            Report("\n\r[ERROR]_Init: Timeout expired connecting to AP: %s (error: %d)\n\r", AP_SSID, ret);
+            Wlan_Disconnect(WLAN_ROLE_STA, nullptr);
+            return CHIP_ERROR_TIMEOUT;
+        }
+        Report("Connected to AP successfully!\n\r");
+    }
+
+    Report("Wait for IP address assignment...\n\r");
+    while(isIp == 0)
+    {
         Report(".");
-        os_sleep(1,0);
+        os_sleep(1, 0);
     }
 
-    Report("Recieved IP address");
+    Report("\n\rReceived IP address successfully!\n\r");
     return CHIP_NO_ERROR;
 }
 

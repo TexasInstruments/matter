@@ -350,7 +350,3 @@
 	path = third_party/re2/src
 	url = https://github.com/google/re2.git
 	platforms = linux,darwin
-[submodule "third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx/repo"]
-	path = third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx/repo
-	url = https://github.com/Mbed-TLS/mbedtls.git
-	platforms = cc35xx

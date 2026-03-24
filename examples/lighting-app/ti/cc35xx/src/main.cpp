@@ -55,19 +55,14 @@ extern "C" const hciTransport_t uartForHci =
     &uart_Write
 };
 
+extern "C" void initialize_mbedtls_threading(void);
+
 // ================================================================================
 // FreeRTOS Callbacks
 // ================================================================================
-/* Wrapper functions for using the queue registry regardless of whether it is enabled or disabled */
-extern "C" void vQueueAddToRegistryWrapper(QueueHandle_t xQueue, const char * pcQueueName)
-{
-    /* This function is intentionally left empty as the Queue Registry is disabled */
-}
-
-extern "C" void vQueueUnregisterQueueWrapper(QueueHandle_t xQueue)
-{
-    /* This function is intentionally left empty as the Queue Registry is disabled */
-}
+// FreeRTOS Hook Functions
+// Note: vQueueAddToRegistryWrapper and vQueueUnregisterQueueWrapper are
+// provided by the SysConfig-generated ti_freertos_config.c
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
     PLAT_LOG("Stack overflow detected in task: %s\n", pcTaskName);
@@ -80,8 +75,6 @@ extern "C" void vApplicationMallocFailedHook(void) {
     taskDISABLE_INTERRUPTS();
     for(;;);
 }
-
-extern "C" { void psa_crypto_init(void); }
 
 extern "C" void UartHciOpen(void)
 {
@@ -100,7 +93,10 @@ int main(void)
 {
     Board_init();
 
-    psa_crypto_init();
+    /* This initializes mutex related hook funcs for threading
+       Should be called first before any mbedTLS / PSA funcs
+    */
+    initialize_mbedtls_threading();
 
     int ret = GetAppTask().StartAppTask();
     if (ret != 0)

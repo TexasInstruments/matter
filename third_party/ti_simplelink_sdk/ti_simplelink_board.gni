@@ -34,7 +34,7 @@ assert(ti_simplelink_board != "", "ti_simplelink_board must be specified")
 # | CC2674R10           | cc13x4_24x4     | CC2674R10RGZ  | Thread FTD + BLE    |
 # | CC3220SF_LAUNCHXL   | cc32xx          | cc3220SF      | Wi-Fi               |
 # | CC3235SF_LAUNCHXL   | cc32xx          | cc3235SF      | Wi-Fi               |
-# | CC35X1_LAUNCHXL     | cc35xx          | CC3551        | Wi-Fi               |
+# | LP_EM_CC35X1        | cc35xx          | CC3551        | Wi-Fi               |
 
 if (ti_simplelink_board == "LP_EM_CC1354P10_6" ||
     ti_simplelink_board == "LP_EM_CC1354P10_1") {
@@ -74,7 +74,7 @@ if (ti_simplelink_board == "LP_EM_CC1354P10_6" ||
 
   # set -DDeviceFamily_CC3220
   ti_simplelink_soc = "cc32xxSF"
-} else if (ti_simplelink_board == "CC35X1_LAUNCHXL") {
+} else if (ti_simplelink_board == "LP_EM_CC35X1") {
   ti_simplelink_device_family = "cc35xx"
   ti_simplelink_soc_family = "cc35xx"
   ti_simplelink_isa = "m33f"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024, Texas Instruments Incorporated
+ * Copyright (c) 2024, Texas Instruments Incorporated
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,100 +30,45 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-STACKSIZE = 0x1000;
+INCLUDE "ti_build_linker.lds.toolbox"
+STACKSIZE = 0x2FF0;
+FLASH_INT_VEC_SIZE = 0x2400; /* Including padding */
+
 
 MEMORY
-{
-    /* Application stored in and executes from external flash */
-    FLASH_META (RX ) : ORIGIN = 0x10001000, LENGTH = 0x0000001C /* Reserved for Bootloader */
-    FLASH_HDR  (RX ) : ORIGIN = 0x1000101C, LENGTH = 0x000000E4
-/*  FLASH      (RX ) : ORIGIN = 0x10001100, LENGTH = 0x0003EF00*//*~256 KB */
-    FLASH      (RX ) : ORIGIN = 0x10001100, LENGTH = 0x03FFEEFF /*~4   MB */
+{   
+    /* Flash regions */
+    FLASH_INT_VEC         (RX) : ORIGIN = 0x14000000, LENGTH = FLASH_INT_VEC_SIZE
+    FLASH_NON_SECURE      (RX) : ORIGIN = 0x14000000 + FLASH_INT_VEC_SIZE, LENGTH = build_linker_toolbox_FLASH_SIZE - FLASH_INT_VEC_SIZE
+    
+    /* RAM regions */
+    TCM_CRAM_NON_SECURE   (RWX) : ORIGIN = 0x00000000, LENGTH = 0x00007FFF  /* 32KB */
+    CRAM_NON_SECURE       (RWX) : ORIGIN = 0x08000000, LENGTH = 0x0000FFFF  /* 64KB */
+    TCM_DRAM_NON_SECURE   (RWX) : ORIGIN = 0x20000000, LENGTH = (build_linker_toolbox_PSRAM_SIZE == 0 ? 0x1FFFF : 0x0FFFF)  /* 64KB for PSRAM */  /* 128KB for NO-PSRAM */
+    CONNECTIVITY_SHARED_MEM (RWX) : ORIGIN = 0x28000000, LENGTH = 0x000000FF
+    BOOT_REPORT_SHARED_MEM  (RWX) : ORIGIN = 0x28000100, LENGTH = 0x00000CAF
+    DRAM_NON_SECURE       (RWX) : ORIGIN = 0x28000DB0, LENGTH = 0x0007F24F  /* ~509KB */
+    PS_RAM                (RW)  : ORIGIN = 0x60000000, LENGTH = (build_linker_toolbox_PSRAM_SIZE > 0 ? build_linker_toolbox_PSRAM_SIZE : 0x1)    /* 8MB or 2MB or 0 MB Configure by sysconfig */ 
 
-    /* Application uses internal C(ode)RAM for code/data */
-    CRAM_TCM   (RWX) : ORIGIN = 0x00000000, LENGTH = 0x00008000 /* 32  KB */
-    CRAM       (RWX) : ORIGIN = 0x08000000, LENGTH = 0x00010000 /* 64  KB */
-
-    /* Application uses internal D(ata)RAM for data */
-    DRAM_TCM   (RWX) : ORIGIN = 0x20000000, LENGTH = 0x00020000 /* 128 KB */
-    DRAM       (RWX) : ORIGIN = 0x28000000, LENGTH = 0x00045000 /* 276 KB */
-
-    MEM_POOL   (RW ) : ORIGIN = 0x28045000, LENGTH = 0x00003000 /* 12  KB */
-
-    /* Other memory regions */
-    PERIPH_API (RW ) : ORIGIN = 0x45602000, LENGTH = 0x0000001F
-    PHY_CTX    (RW ) : ORIGIN = 0x45900000, LENGTH = 0x00010000
-    PHY_SCR    (RW ) : ORIGIN = 0x45910000, LENGTH = 0x00004800
-    DB_MEM     (RW ) : ORIGIN = 0x45A80000, LENGTH = 0x0000FFFF
-    CPERAM     (RWX) : ORIGIN = 0x45C00000, LENGTH = 0x00010000 /* 64K  PROGRAM MEMORY  */
-    MCERAM     (RWX) : ORIGIN = 0x45C80000, LENGTH = 0x00001000 /* 4K   PROGRAM MEMORY   */
-    RFERAM     (RWX) : ORIGIN = 0x45CA0000, LENGTH = 0x00001000 /* 4K   PROGRAM MEMORY   */
-    MDMRAM     (RWX) : ORIGIN = 0x45CC0000, LENGTH = 0x00000100 /* 256B PROGRAM MEMORY */
-
-    /* Explicitly placed off target for the storage of logging data.
-     * The data placed here is NOT loaded onto the target device.
-     * This is part of 1 GB of external memory from 0x60000000 - 0x9FFFFFFF.
-     * ARM memory map can be found here:
-     * https://developer.arm.com/documentation/ddi0337/e/memory-map/about-the-memory-map
-     */
-
-    LOG_DATA   (R  ) : ORIGIN = 0x90000000, LENGTH = 0x00040000 /* 256 KB */
-    LOG_PTR    (R  ) : ORIGIN = 0x94000008, LENGTH = 0x00040000 /* 256 KB */
+    /* Logging data regions */
+    LOG_DATA (R) : ORIGIN = 0x90000000, LENGTH = 0x40000        /* 256 KB */
+    LOG_PTR  (R) : ORIGIN = 0x94000008, LENGTH = 0x40000        /* 256 KB */
+    
 }
 
-REGION_ALIAS("REGION_HDR", FLASH_HDR);
-REGION_ALIAS("REGION_TEXT", FLASH);
-REGION_ALIAS("REGION_BSS", DRAM);
-REGION_ALIAS("REGION_NVM", DRAM_TCM);
-REGION_ALIAS("REGION_CONNECTIVITY", DRAM);
-REGION_ALIAS("REGION_DATA", DRAM_TCM);
-REGION_ALIAS("REGION_STACK", DRAM_TCM);
-REGION_ALIAS("REGION_HEAP", DRAM_TCM);
-REGION_ALIAS("REGION_LOG", LOG_DATA);
-REGION_ALIAS("REGION_ARM_EXIDX", FLASH);
-REGION_ALIAS("REGION_ARM_EXTAB", FLASH);
-REGION_ALIAS("REGION_TI_RAMFUNC", CRAM_TCM);
-
-SECTIONS {
-
- /*   GROUP { */
-        /* The first flash sector (4KB bytes)
-         * and the first 0x1C bytes of the second flash sector is reserved for
-         * metadata used by the bootloader. The interrupt vectors must be 512B
-         * aligned so the vector table must be at 0x10000000 + 0x1000 + 0x200 = 
-         * 0x10001200
-         * TODO: Incorrect alignment of 256B resulting in 0x10001100 is
-         * currently used, to match what the bootloader currently expects. This
-         * needs to be fixed when the bootloader uses the correct alignment.
-         * See TIDRIVERS-6649.
-         * The bytes from the end of bootloader metadata to the vector table
-         * (0x1000101C to 0x100010FF, both inlcuded) must be filled with 0xFF.
-         */
-/*        .reserved:                   { . += 0x101C; } (NOLOAD) *//* Reserved for bootloader metadata */
-/*        .padding : fill = 0xFFFFFFFF { . += 0x00E4; } */
-/*        .resetVecs:                  {} PALIGN(4) */
-/*    } > FLASH_BASE */
-
-    .resetPad (0x1000101C) : {
-        FILL(0xFF);
-        _padStart = .;
-        /* Need something in the output section otherwise uninitialized (NOBITS) */
-        BYTE(0xFF);
-        . += (0xE4 - 0x01);
-        _padEnd = .;
-    } > REGION_HDR
-
-    PROVIDE (_resetVecs_base_address =
-        DEFINED(_resetVecs_base_address) ? _resetVecs_base_address : 0x10001100);
-
-    .resetVecs (_resetVecs_base_address) : AT (_resetVecs_base_address) {
+SECTIONS
+{
+    /* Reserved for bootloader metadata - application starts at 0x2000 */
+    .reserved (0x14000000) (NOLOAD) : {        
+        . += 0x2000;
+    } > FLASH_INT_VEC
+    
+    /* Vector table in flash */
+    .resetVecs : {
         KEEP (*(.resetVecs))
-    } > REGION_TEXT
+    } > FLASH_INT_VEC
 
-    .ramVecs (NOLOAD) : ALIGN(1024) {
-        KEEP (*(.ramVecs))
-    } > REGION_DATA
-
+    /* Code sections */
     .text : {
         CREATE_OBJECT_SYMBOLS
         *(.text)
@@ -138,86 +83,105 @@ SECTIONS {
         __init_array_end = .;
         *(.init)
         *(.fini*)
-    } > REGION_TEXT AT> REGION_TEXT
-
+    } > FLASH_NON_SECURE
+    
     PROVIDE (__etext = .);
     PROVIDE (_etext = .);
     PROVIDE (etext = .);
-
+    
     .rodata : {
         *(.rodata)
-        *(.rodata*)
-    } > REGION_TEXT AT> REGION_TEXT
-
-    .data : ALIGN (4) {
-        __data_load__ = LOADADDR (.data);
+        *(.rodata.*)
+        *(.rodata_*)
+        KEEP (*(.timestampPFormat))
+        . = ALIGN(4);
+    } > FLASH_NON_SECURE
+    
+    .cinit : {
+        *(.cinit)
+    } > FLASH_NON_SECURE
+    
+    .binit : {
+        *(.binit)
+    } > FLASH_NON_SECURE
+    
+    /* TI RAM functions - code that runs from RAM */
+    .TI.ramfunc : ALIGN(4) {
+        __ramfunc_load__ = LOADADDR(.TI.ramfunc);
+        __ramfunc_start__ = .;
+        *(.TI.ramfunc)
+        __ramfunc_end__ = .;
+    } > TCM_CRAM_NON_SECURE AT> FLASH_NON_SECURE 
+    
+    /* Data section */
+    .data : ALIGN(4) {
+        __data_load__ = LOADADDR(.data);
         __data_start__ = .;
         *(.data)
-        *(.data*)
-        *(.TI.ramfunc)
-        . = ALIGN (4);
+        *(.data.*)
+        . = ALIGN(4);
         __data_end__ = .;
-    } > REGION_DATA AT> REGION_TEXT
-
+    } > TCM_DRAM_NON_SECURE AT> FLASH_NON_SECURE
+    
+    /* Exception handling sections */
     .ARM.exidx : {
         __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
         __exidx_end = .;
-    } > REGION_ARM_EXIDX AT> REGION_ARM_EXIDX
-
+    } > FLASH_NON_SECURE
+    
     .ARM.extab : {
         *(.ARM.extab* .gnu.linkonce.armextab.*)
-    } > REGION_ARM_EXTAB AT> REGION_ARM_EXTAB
+    } > FLASH_NON_SECURE
 
-    .nvm : {
-        *(.bss.xmemDataToWriteBuffer)
-        *(.bss.dataToWrite)
-        *(.bss.dataRead)
-        *(.bss.verifyBuffer)
-        . = ALIGN (4);
-    } > REGION_NVM AT> REGION_NVM
     
+    /* System memory section */
+    .sysmem : {
+        __SYSMEM_START__ = .;
+        *(.sysmem)
+        . = ALIGN(4);
+        __SYSMEM_END__ = .;
+    } > DRAM_NON_SECURE
+    
+    /* BSS sections */
     .bss : {
         __bss_start__ = .;
         *(.shbss)
         *(.bss)
         *(.bss.*)
         *(COMMON)
-        . = ALIGN (4);
+        . = ALIGN(4);
         __bss_end__ = .;
-    } > REGION_BSS AT> REGION_BSS
-
-    .heap : {
-        __heap_start__ = .;
-        end = __heap_start__;
-        _end = end;
-        __end = end;
-        KEEP(*(.heap))
-        __heap_end__ = .;
-        __HeapLimit = __heap_end__;
-    } > REGION_HEAP AT> REGION_HEAP
-
-    .stack (NOLOAD) : ALIGN(0x8) {
+    } > DRAM_NON_SECURE  
+    
+    
+    /* Stack section */
+    .stack (NOLOAD) : ALIGN(8) {
         _stack = .;
         __stack = .;
         KEEP(*(.stack))
         . += STACKSIZE;
         _stack_end = .;
         __stack_end = .;
-    } > REGION_STACK AT> REGION_STACK
-
-    .connectivity_shared_status (0x2803FF00) : ALIGN(0x4) {
+    } > TCM_DRAM_NON_SECURE
+    
+    /* Connectivity shared status section */
+    .connectivity_shared_status_section (NOLOAD) : ALIGN(4) {
         KEEP (*(.connectivity_shared_status_section))
-    } > REGION_CONNECTIVITY AT> REGION_TEXT
-
-    .ti_ramfunc : ALIGN(0x4) { 
-        KEEP (*(.TI.ramfunc))  
-    } > REGION_TI_RAMFUNC AT> REGION_TEXT 
-
-    .log_data (COPY) : {
+    } > CONNECTIVITY_SHARED_MEM
+    
+    /* boot report shared section */
+    .boot_report_shared_section (NOLOAD) : ALIGN(4) {
+        _Boot_report_address = .;
+    } > BOOT_REPORT_SHARED_MEM
+    
+    
+    /* Logging sections */
+    .log_data (COPY) : ALIGN(4) {
         KEEP (*(.log_data))
-    } > REGION_LOG
-    .log_ptr (COPY) : {
+    } > LOG_DATA
+    
+    .log_ptr (COPY) : ALIGN(4) {
         KEEP (*(.log_ptr*))
     } > LOG_PTR
 }

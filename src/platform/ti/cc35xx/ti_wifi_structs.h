@@ -2,9 +2,47 @@
 * Structs and defines used across TI Wi-Fi and LWIP Drivers
 */
 
-#define CMD_BUFFER_LEN          (256)
-#define WLAN_REASON_DEAUTH_LEAVING 3
-#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY 4
+#define CMD_BUFFER_LEN                          (256)
+#define WLAN_REASON_DEAUTH_LEAVING              (3)
+#define WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY  (4)
+
+/* Application defines */
+#define WLAN_EVENT_TOUT             (40000)
+#define MAX_SCAN_TRAILS             (10)
+#define P2P_CONNECT_PRIORITY        (SPAWN_TASK_PRIORITY - 1)
+#define P2P_STACK_SIZE              (2048)
+#define P2P_REMOTE_DEVICE           ("StartScan")
+#define P2P_DEVICE_TYPE             ("1-0050F204-1")
+#define P2P_DEVICE_NAME             ("cc32xx_p2p_device")
+#define LISTEN_CHANNEL              (11)
+#define LISTEN_REGULATORY_CLASS     (81)
+#define OPRA_CHANNEL                (6)
+#define OPRA_REGULATORY_CLASS       (81)
+#define TIMEOUT_SEM                 (1)
+#define LPDS_WAKEUP_SW              (1)
+#define MGMT                        (0)
+#define CTRL                        (1)
+#define DATA                        (2)
+#define CC3x35_BIT                  (0x100000)
+#define NET_IF_STA_BIT              (0)
+#define NET_IF_AP_BIT               (1)
+#define NET_IF_IS_UP                (2)
+
+#define BIT_x(x)                                        (1 << (x))
+#define IS_BIT_SET(bit_field, bit_num)                  (((bit_field) & BIT_x(bit_num)) > 0)
+#define CLEAR_BIT_IN_BITMAP(bit_field,bit_num)          { (bit_field) &= ~ BIT_x(bit_num) ; }
+#define SET_BIT_IN_BITMAP(bit_field,bit_num)            { (bit_field) |=   BIT_x(bit_num) ; }
+
+#define SET_STATUS_BIT(status_variable, bit) status_variable |= (1<<(bit))
+
+#define CLR_STATUS_BIT(status_variable, bit) status_variable &= ~(1<<(bit))
+
+#define GET_STATUS_BIT(status_variable, bit) \
+                                (0 != (status_variable & (1<<(bit))))
+#define IS_PING_RUNNING(status_variable)     \
+                GET_STATUS_BIT(status_variable, STATUS_BIT_PING_STARTED)
+#define IS_STA_CONNECTED(status_variable)        \
+                GET_STATUS_BIT(status_variable, STATUS_BIT_STA_CONNECTION)
 
 typedef union
 {
@@ -17,6 +55,8 @@ typedef struct connectionControlBlock_t
     OsiSyncObj_t    connectEventSyncObj;
     OsiSyncObj_t    eventCompletedSyncObj;
     OsiSyncObj_t    dhcpIprecvSyncObj;
+    OsiSyncObj_t    staRoleupSyncObj;
+    OsiSyncObj_t    staRoledownSyncObj;
     uint32_t GatewayIP;
     uint8_t  ConnectionSSID[WLAN_SSID_MAX_LENGTH +1];
     uint8_t  ConnectionBSSID[WLAN_BSSID_LENGTH];
@@ -50,6 +90,7 @@ typedef struct appControlBlock_t
 }appControlBlock;
 
 extern appControlBlock app_CB;
+extern uint32_t ActiveNetIfBitMap;
 
 typedef struct ConnectCmd
 {
@@ -106,41 +147,3 @@ typedef enum
     STATUS_BIT_TX_STARED
 
 }e_StatusBits;
-
-#define SET_STATUS_BIT(status_variable, bit) status_variable |= (1<<(bit))
-
-#define CLR_STATUS_BIT(status_variable, bit) status_variable &= ~(1<<(bit))
-
-#define GET_STATUS_BIT(status_variable, bit) \
-                                (0 != (status_variable & (1<<(bit))))
-#define IS_PING_RUNNING(status_variable)     \
-                GET_STATUS_BIT(status_variable, STATUS_BIT_PING_STARTED)
-#define IS_STA_CONNECTED(status_variable)        \
-                GET_STATUS_BIT(status_variable, STATUS_BIT_STA_CONNECTION)
-
-/* Application defines */
-#define WLAN_EVENT_TOUT             (40000)
-#define MAX_SCAN_TRAILS             (10)
-#define P2P_CONNECT_PRIORITY        (SPAWN_TASK_PRIORITY - 1)
-#define P2P_STACK_SIZE              (2048)
-#define P2P_REMOTE_DEVICE           ("StartScan")
-#define P2P_DEVICE_TYPE             ("1-0050F204-1")
-#define P2P_DEVICE_NAME             ("cc32xx_p2p_device")
-#define LISTEN_CHANNEL              (11)
-#define LISTEN_REGULATORY_CLASS     (81)
-#define OPRA_CHANNEL                (6)
-#define OPRA_REGULATORY_CLASS       (81)
-#define TIMEOUT_SEM                 (1)
-#define LPDS_WAKEUP_SW              (1)
-#define MGMT                        (0)
-#define CTRL                        (1)
-#define DATA                        (2)
-#define CC3x35_BIT                  (0x100000)
-#define NET_IF_STA_BIT              (0)
-#define NET_IF_AP_BIT               (1)
-#define NET_IF_IS_UP                (2)
-
-#define BIT_x(x)                                        (1 << (x))
-#define IS_BIT_SET(bit_field, bit_num)                  (((bit_field) & BIT_x(bit_num)) > 0)
-#define CLEAR_BIT_IN_BITMAP(bit_field,bit_num)          { (bit_field) &= ~ BIT_x(bit_num) ; }
-#define SET_BIT_IN_BITMAP(bit_field,bit_num)            { (bit_field) |=   BIT_x(bit_num) ; }

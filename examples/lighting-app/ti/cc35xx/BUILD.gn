@@ -36,12 +36,8 @@ ti_simplelink_sdk("sdk") {
 ti_sysconfig("sysconfig") {
   sources = [ "${chip_root}/examples/platform/ti/sysconfig/chip_cc35xx.syscfg" ]
 
-  outputs = [
-    "ti_drivers_config.c",
-    "ti_drivers_config.h",
-
-    # CCFG generation disabled for OTA-able application
-  ]
+  # Output files are dynamically queried from SysConfig via
+  # --listGeneratedFiles at GN generation time (cc35xx platform).
 
   cflags = [
     "-Wno-comment",

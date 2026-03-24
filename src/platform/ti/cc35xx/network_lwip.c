@@ -217,9 +217,10 @@ const char static_mask[4]   = {255,255,255,0};
 
 struct netif staif = {0};
 struct netif apif = {0};
-//extern 
+//extern
 uint32_t isIp = 0;
 appControlBlock app_CB;
+uint32_t ActiveNetIfBitMap = 0x00;
 
 
 int update_arp(void* ip_addr)
@@ -566,16 +567,12 @@ signed char _role_sta_up(struct netif *newif)
     newif->linkoutput           = network_send;
     newif->flags               |= NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP | NETIF_FLAG_MLD6 | NETIF_FLAG_BROADCAST;
 
-    RoleUpApCmd_t RoleUpStaParams;
-    os_memset(&RoleUpStaParams, 0 , sizeof(RoleUpApCmd_t));
-#ifdef CC35XX
-    RoleUpStaParams.countryDomain[0] = '\0';
-    RoleUpStaParams.countryDomain[1] = '\0';
-#elif defined(CC33XX)
-    RoleUpStaParams.countryDomain[0] = 'U';
-    RoleUpStaParams.countryDomain[1] = 'S';
-#endif
-    Wlan_RoleUp(WLAN_ROLE_STA, &RoleUpStaParams, WLAN_WAIT_FOREVER);
+    // Signal to application that network interface is ready for Wlan_RoleUp
+    if (app_CB.CON_CB.staRoleupSyncObj != NULL)
+    {
+        osi_SyncObjSignal(&app_CB.CON_CB.staRoleupSyncObj);
+    }
+
     return 0;
 }
 
@@ -621,7 +618,14 @@ void tcpip_network_stack_remove_if_sta(void *ctx)
 {
     struct netif *pNetIf = &staif;
     tcpinternal_network_set_down(pNetIf);
+    etharp_cleanup_netif(pNetIf);
     netif_remove(pNetIf);
+
+    // Signal to application that network interface has been removed
+    if (app_CB.CON_CB.staRoledownSyncObj != NULL)
+    {
+        osi_SyncObjSignal(&app_CB.CON_CB.staRoledownSyncObj);
+    }
 }
 
 void tcpip_network_stack_add_if_ap(void *ctx)

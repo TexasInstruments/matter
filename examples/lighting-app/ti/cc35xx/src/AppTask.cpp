@@ -232,6 +232,8 @@ int AppTask::Init()
     PLAT_LOG("Software Version: %d", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION);
     PLAT_LOG("Software Version String: %s", CHIP_DEVICE_CONFIG_DEVICE_SOFTWARE_VERSION_STRING);
 
+    psa_crypto_init();
+
     // Initialize Platform Manager and Wi-Fi stack via Connectivity Manager
     CHIP_ERROR ret = PlatformMgr().InitChipStack();
     if (ret != CHIP_NO_ERROR)
@@ -373,7 +375,7 @@ void AppTask::AppTaskMain(void * pvParameter)
      UBaseType_t uxTaskCount;
      UBaseType_t x;
      uint32_t ulTotalRunTime;
- 
+
      uxTaskCount = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize, &ulTotalRunTime);
      /* Iterate through each task and print its stack high water mark */
      for (x = 0; x < uxTaskCount; x++)
@@ -382,7 +384,7 @@ void AppTask::AppTaskMain(void * pvParameter)
                   pxTaskStatusArray[x].usStackHighWaterMark);
          // Report("Task Stack Base: %p\n", pxTaskStatusArray[x].pxStackBase );
      }
- 
+
      size_t xFreeHeapSpace            = xPortGetFreeHeapSize();
      size_t xMinimumEverFreeHeapSpace = xPortGetMinimumEverFreeHeapSize();
      (void) xFreeHeapSpace;

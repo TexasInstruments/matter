@@ -22,7 +22,7 @@ ti_simplelink_sdk_target = get_label_info(":sdk", "label_no_toolchain")
 ti_simplelink_sysconfig_target =
     get_label_info(":sysconfig", "label_no_toolchain")
 
-ti_simplelink_board = "CC35X1_LAUNCHXL"
+ti_simplelink_board = "LP_EM_CC35X1"
 
 # Size Optimizations
 # use -Os instead of -Og, LWIP release build
@@ -57,5 +57,5 @@ chip_persist_subscriptions = false
 chip_subscription_timeout_resumption = false
 
 freertos_root = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk/repo_cc35xx/source/third_party/freertos"
-mbedtls_root = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx"
-mbedtls_repo = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk/repo_mbedtls_cc35xx"
+mbedtls_root = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk"
+mbedtls_repo = "//third_party/connectedhomeip/third_party/ti_simplelink_sdk"

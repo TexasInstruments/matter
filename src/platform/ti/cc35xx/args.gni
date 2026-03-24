@@ -20,6 +20,7 @@ arm_platform_config =
     "${ti_simplelink_sdk_build_root}/ti_simplelink_arm_platform_config.gni"
 
 chip_device_platform = "cc35xx"
+chip_crypto = "psa"
 mbedtls_target = "${chip_root}/third_party/ti_simplelink_sdk:mbedtls"
 # openthread_external_mbedtls = mbedtls_target
 # openthread_external_platform =

@@ -26,8 +26,6 @@ static_library("cc35xx") {
     "CC35XXConfig.h",
     "osi_dpl.c",
     "osi_filesystem.c",
-    "entropy.c",
-    "entropy_poll.c",
     "ConfigurationManagerImpl.cpp",
     "ConnectivityManagerImpl.cpp",
     "../DefaultTestEventTriggerDelegate.cpp",
@@ -46,15 +44,14 @@ static_library("cc35xx") {
     "SystemPlatformConfig.h",
     "network_lwip.h",
     "network_lwip.c",
+    "network_mbedtls.c",
+    "syslog.c",
   ]
     include_dirs = [
       "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_adapt",
       "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_common",
       "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_platform/cc35xx/inc_common",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/wifi_stack/inc_common",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/tools/TI_Containers",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/third_party/mbedTLS/mbedTLS/library",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/third_party/mbedTLS/mbedTLS/include",
+      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/wifi_stack/inc_common",    
       ]
 
 

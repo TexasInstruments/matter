@@ -112,7 +112,7 @@ template("ti_simplelink_executable") {
     ldflags = [
       "-L" + rebase_path(ti_simplelink_sdk_root + "/source", root_build_dir),
       "-L" + rebase_path("${target_gen_dir}/sysconfig/", root_build_dir),
-      rebase_path(
+      "-T" + rebase_path(
           "${target_gen_dir}/sysconfig/ti_utils_build_linker.cmd.genlibs",
           root_build_dir),
       "-T" + rebase_path(ldscript, root_build_dir),
@@ -535,6 +535,7 @@ template("ti_simplelink_executable") {
             root_out_dir),
         rebase_path("${root_out_dir}/${output_base_name}.out", 
                     root_out_dir),
+        ti_simplelink_wifi_sdk_root
       ]
     }
   }
