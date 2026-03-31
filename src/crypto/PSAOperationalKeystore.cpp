@@ -19,6 +19,7 @@
 #include "PersistentStorageOperationalKeystore.h"
 
 #include <lib/support/CHIPMem.h>
+#include <lib/support/logging/CHIPLogging.h>
 
 #include <psa/crypto.h>
 
@@ -70,12 +71,23 @@ CHIP_ERROR PSAOperationalKeystore::PersistentP256Keypair::Generate()
     psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_SIGN_MESSAGE);
     psa_set_key_lifetime(&attributes, PSA_KEY_LIFETIME_PERSISTENT);
     psa_set_key_id(&attributes, GetKeyId());
-
     status = psa_generate_key(&attributes, &keyId);
-    VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "OpKeystore: psa_generate_key FAILED psa=%d", (int) status);
+        LogPsaError(status);
+        error = CHIP_ERROR_INTERNAL;
+        goto exit;
+    }
 
     status = psa_export_public_key(keyId, mPublicKey.Bytes(), mPublicKey.Length(), &publicKeyLength);
-    VerifyOrExit(status == PSA_SUCCESS, error = CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "OpKeystore: psa_export_public_key FAILED psa=%d", (int) status);
+        LogPsaError(status);
+        error = CHIP_ERROR_INTERNAL;
+        goto exit;
+    }
     VerifyOrExit(publicKeyLength == kP256_PublicKey_Length, error = CHIP_ERROR_INTERNAL);
 
 exit:

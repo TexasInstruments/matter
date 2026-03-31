@@ -65,7 +65,9 @@ def main():
         print("SysConfig CLI not found at: " + cli, file=sys.stderr)
         sys.exit(1)
 
-    # Parse output: one file path per line, with status prefix (e.g., "Unchanged /path/file.c...")
+    # Parse output: one file path per line. SysConfig may output lines with a
+    # status prefix on subsequent runs ("Unchanged /path/file.c...") or plain
+    # file paths on the first run (when no output files exist yet).
     # Extract basenames and filter to .c and .h files only.
     # (.opt files are consumed via cflags, not as source files)
     for line in result.stdout.strip().splitlines():
@@ -73,17 +75,16 @@ def main():
         if not line:
             continue
 
-        # Skip non-file lines (e.g., "Running script...", "Validating...")
-        if not line.startswith(('Unchanged ', 'Created ', 'Updated ')):
-            continue
+        # Strip optional status prefix ("Unchanged ", "Created ", "Updated ")
+        # then take the last whitespace-separated token as the candidate path.
+        if line.startswith(('Unchanged ', 'Created ', 'Updated ')):
+            parts = line.split(None, 1)
+            candidate = parts[1] if len(parts) > 1 else ''
+        else:
+            # First-run format: plain path or other line; take the last token.
+            candidate = line.split()[-1]
 
-        # Extract file path after status prefix
-        parts = line.split(None, 1)  # Split on first whitespace
-        if len(parts) < 2:
-            continue
-
-        file_path = parts[1].rstrip('.')  # Remove trailing '...'
-        basename = os.path.basename(file_path)
+        basename = os.path.basename(candidate.rstrip('.'))
 
         if basename.endswith('.c') or basename.endswith('.h'):
             print(basename)

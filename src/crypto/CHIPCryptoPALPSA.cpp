@@ -31,6 +31,7 @@
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/SafePointerCast.h>
+#include <lib/support/CHIPMem.h>
 #include <lib/support/logging/CHIPLogging.h>
 
 #include <psa/crypto.h>
@@ -70,24 +71,75 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
     VerifyOrReturnError(aad != nullptr || aad_length == 0, CHIP_ERROR_INVALID_ARGUMENT);
 
     const psa_algorithm_t algorithm = PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, tag_length);
-    psa_status_t status             = PSA_SUCCESS;
-    psa_aead_operation_t operation  = PSA_AEAD_OPERATION_INIT;
+
+#ifdef CHIP_CRYPTO_PSA_AES_CCM_ONESHOT_WORKAROUND
+    // TI CC35xx HSM does not support multi-step streaming AEAD (psa_aead_update fails
+    // with PSA_ERROR_GENERIC_ERROR). Use the one-shot psa_aead_encrypt API instead.
+    // psa_aead_encrypt outputs (ciphertext || tag) contiguously, so we allocate a
+    // temporary combined buffer then split the result.
+    {
+        size_t combined_len = plaintext_length + tag_length;
+        uint8_t * combined  = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(combined_len));
+        VerifyOrReturnError(combined != nullptr, CHIP_ERROR_NO_MEMORY);
+
+        size_t out_len          = 0;
+        psa_status_t status     = psa_aead_encrypt(key.As<psa_key_id_t>(), algorithm,
+                                               nonce, nonce_length,
+                                               aad, aad_length,
+                                               plaintext, plaintext_length,
+                                               combined, combined_len, &out_len);
+        if (status == PSA_SUCCESS)
+        {
+            memcpy(ciphertext, combined, plaintext_length);
+            memcpy(tag, combined + plaintext_length, tag_length);
+        }
+        chip::Platform::MemoryFree(combined);
+
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_encrypt (one-shot) failed: %d", (int) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        return CHIP_NO_ERROR;
+    }
+#else
+    psa_status_t status            = PSA_SUCCESS;
+    psa_aead_operation_t operation = PSA_AEAD_OPERATION_INIT;
     size_t out_length;
     size_t tag_out_length;
 
     status = psa_aead_encrypt_setup(&operation, key.As<psa_key_id_t>(), algorithm);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_encrypt_setup failed: %d", (int) status);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     status = psa_aead_set_lengths(&operation, aad_length, plaintext_length);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_set_lengths failed: %d", (int) status);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     status = psa_aead_set_nonce(&operation, nonce, nonce_length);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_set_nonce failed (nonce_len=%u): %d", (unsigned) nonce_length, (int) status);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     if (aad_length != 0)
     {
         status = psa_aead_update_ad(&operation, aad, aad_length);
-        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_update_ad failed: %d", (int) status);
+            psa_aead_abort(&operation);
+            return CHIP_ERROR_INTERNAL;
+        }
     }
     else
     {
@@ -98,7 +150,12 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
     {
         status = psa_aead_update(&operation, plaintext, plaintext_length, ciphertext,
                                  PSA_AEAD_UPDATE_OUTPUT_SIZE(PSA_KEY_TYPE_AES, algorithm, plaintext_length), &out_length);
-        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_update failed: %d", (int) status);
+            psa_aead_abort(&operation);
+            return CHIP_ERROR_INTERNAL;
+        }
 
         ciphertext += out_length;
 
@@ -109,9 +166,16 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
     {
         status = psa_aead_finish(&operation, nullptr, 0, &out_length, tag, tag_length, &tag_out_length);
     }
-    VerifyOrReturnError(status == PSA_SUCCESS && tag_length == tag_out_length, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS || tag_length != tag_out_length)
+    {
+        ChipLogError(Crypto, "AES_CCM_encrypt: psa_aead_finish failed: %d (tag_len=%u out=%u)",
+                     (int) status, (unsigned) tag_length, (unsigned) tag_out_length);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     return CHIP_NO_ERROR;
+#endif // CHIP_CRYPTO_PSA_AES_CCM_ONESHOT_WORKAROUND
 }
 
 CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length, const uint8_t * aad, size_t aad_length,
@@ -124,23 +188,72 @@ CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length,
     VerifyOrReturnError(aad != nullptr || aad_length == 0, CHIP_ERROR_INVALID_ARGUMENT);
 
     const psa_algorithm_t algorithm = PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, tag_length);
-    psa_status_t status             = PSA_SUCCESS;
-    psa_aead_operation_t operation  = PSA_AEAD_OPERATION_INIT;
+
+
+#ifdef CHIP_CRYPTO_PSA_AES_CCM_ONESHOT_WORKAROUND
+    // TI CC35xx HSM does not support multi-step streaming AEAD (psa_aead_update fails
+    // with PSA_ERROR_GENERIC_ERROR). Use the one-shot psa_aead_decrypt API instead.
+    // psa_aead_decrypt expects (ciphertext || tag) as a single contiguous input buffer.
+    {
+        size_t combined_len = ciphertext_length + tag_length;
+        uint8_t * combined  = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(combined_len));
+        VerifyOrReturnError(combined != nullptr, CHIP_ERROR_NO_MEMORY);
+
+        memcpy(combined, ciphertext, ciphertext_length);
+        memcpy(combined + ciphertext_length, tag, tag_length);
+
+        size_t out_len      = 0;
+        psa_status_t status = psa_aead_decrypt(key.As<psa_key_id_t>(), algorithm,
+                                               nonce, nonce_length,
+                                               aad, aad_length,
+                                               combined, combined_len,
+                                               plaintext, ciphertext_length, &out_len);
+        chip::Platform::MemoryFree(combined);
+
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_decrypt (one-shot) failed: %d", (int) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        return CHIP_NO_ERROR;
+    }
+#else
+    psa_status_t status            = PSA_SUCCESS;
+    psa_aead_operation_t operation = PSA_AEAD_OPERATION_INIT;
     size_t outLength;
 
     status = psa_aead_decrypt_setup(&operation, key.As<psa_key_id_t>(), algorithm);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_decrypt_setup failed: %d", (int) status);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     status = psa_aead_set_lengths(&operation, aad_length, ciphertext_length);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_set_lengths failed: %d", (int) status);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     status = psa_aead_set_nonce(&operation, nonce, nonce_length);
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_set_nonce failed (nonce_len=%u): %d", (unsigned) nonce_length, (int) status);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     if (aad_length != 0)
     {
         status = psa_aead_update_ad(&operation, aad, aad_length);
-        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_update_ad failed: %d", (int) status);
+            psa_aead_abort(&operation);
+            return CHIP_ERROR_INTERNAL;
+        }
     }
     else
     {
@@ -151,7 +264,12 @@ CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length,
     {
         status = psa_aead_update(&operation, ciphertext, ciphertext_length, plaintext,
                                  PSA_AEAD_UPDATE_OUTPUT_SIZE(PSA_KEY_TYPE_AES, algorithm, ciphertext_length), &outLength);
-        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_update failed: %d", (int) status);
+            psa_aead_abort(&operation);
+            return CHIP_ERROR_INTERNAL;
+        }
 
         plaintext += outLength;
 
@@ -163,9 +281,15 @@ CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length,
         status = psa_aead_verify(&operation, nullptr, 0, &outLength, tag, tag_length);
     }
 
-    VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(Crypto, "AES_CCM_decrypt: psa_aead_verify failed: %d", (int) status);
+        psa_aead_abort(&operation);
+        return CHIP_ERROR_INTERNAL;
+    }
 
     return CHIP_NO_ERROR;
+#endif // CHIP_CRYPTO_PSA_AES_CCM_ONESHOT_WORKAROUND
 }
 
 CHIP_ERROR Hash_SHA256(const uint8_t * data, const size_t data_length, uint8_t * out_buffer)
@@ -287,19 +411,69 @@ CHIP_ERROR FindFreeKeySlotInRange(psa_key_id_t & keyId, psa_key_id_t start, uint
 
 CHIP_ERROR PsaKdf::Init(const ByteSpan & secret, const ByteSpan & salt, const ByteSpan & info)
 {
-    psa_status_t status        = PSA_SUCCESS;
-    psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+    // TI HSM workaround: PSA_ALG_HKDF with psa_key_derivation_input_bytes(SECRET)
+    // and psa_import_key(PSA_KEY_TYPE_DERIVE) are both unsupported by the TI DDK.
+    // Split into two explicit operations instead:
+    //   Step 1 — HKDF-EXTRACT: (salt, IKM) → PRK  using PSA_ALG_HKDF_EXTRACT
+    //   Step 2 — HKDF-EXPAND:  (PRK, info) → OKM  using PSA_ALG_HKDF_EXPAND
+    // Both steps use psa_key_derivation_input_bytes only — no psa_import_key needed.
 
-    psa_set_key_type(&attrs, PSA_KEY_TYPE_DERIVE);
-    psa_set_key_algorithm(&attrs, PSA_ALG_HKDF(PSA_ALG_SHA_256));
-    psa_set_key_usage_flags(&attrs, PSA_KEY_USAGE_DERIVE);
+    psa_status_t status;
+    uint8_t prk[PSA_HASH_LENGTH(PSA_ALG_SHA_256)]; // 32-byte PRK on stack
 
-    status = psa_import_key(&attrs, secret.data(), secret.size(), &mSecretKeyId);
-    LogPsaError(status);
-    psa_reset_key_attributes(&attrs);
+    // Step 1: HKDF-EXTRACT
+    {
+        psa_key_derivation_operation_t extractOp = PSA_KEY_DERIVATION_OPERATION_INIT;
+
+        status = psa_key_derivation_setup(&extractOp, PSA_ALG_HKDF_EXTRACT(PSA_ALG_SHA_256));
+        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+
+        status = psa_key_derivation_input_bytes(&extractOp, PSA_KEY_DERIVATION_INPUT_SALT,
+                                                salt.data(), salt.size());
+        if (status != PSA_SUCCESS)
+        {
+            psa_key_derivation_abort(&extractOp);
+            LogPsaError(status);
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        status = psa_key_derivation_input_bytes(&extractOp, PSA_KEY_DERIVATION_INPUT_SECRET,
+                                                secret.data(), secret.size());
+        if (status != PSA_SUCCESS)
+        {
+            psa_key_derivation_abort(&extractOp);
+            LogPsaError(status);
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        status = psa_key_derivation_output_bytes(&extractOp, prk, sizeof(prk));
+        psa_key_derivation_abort(&extractOp);
+        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    }
+
+    // Step 2: HKDF-EXPAND — mOperation is used by subsequent DeriveBytes() calls
+    status = psa_key_derivation_setup(&mOperation, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    if (status != PSA_SUCCESS)
+    {
+        memset(prk, 0, sizeof(prk));
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    // PRK is the SECRET input for HKDF-EXPAND; must be exactly PSA_HASH_LENGTH bytes
+    status = psa_key_derivation_input_bytes(&mOperation, PSA_KEY_DERIVATION_INPUT_SECRET,
+                                            prk, sizeof(prk));
+    memset(prk, 0, sizeof(prk)); // zero PRK from stack immediately after use
+    if (status != PSA_SUCCESS)
+    {
+        LogPsaError(status);
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    status = psa_key_derivation_input_bytes(&mOperation, PSA_KEY_DERIVATION_INPUT_INFO,
+                                            info.data(), info.size());
     VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
 
-    return InitOperation(mSecretKeyId, salt, info);
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR PsaKdf::Init(const HkdfKeyHandle & hkdfKey, const ByteSpan & salt, const ByteSpan & info)
@@ -323,7 +497,7 @@ CHIP_ERROR PsaKdf::InitOperation(psa_key_id_t hkdfKey, const ByteSpan & salt, co
 
     status = psa_key_derivation_input_bytes(&mOperation, PSA_KEY_DERIVATION_INPUT_INFO, info.data(), info.size());
     VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
-
+    
     return CHIP_NO_ERROR;
 }
 

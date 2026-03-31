@@ -38,6 +38,7 @@
 #endif
 
 #include <CHIPDeviceManager.h>
+#include <crypto/PSAOperationalKeystore.h>
 #include <DeviceCallbacks.h>
 #include <lib/support/CHIPMem.h>
 #include <lib/support/CHIPPlatformMemory.h>
@@ -291,6 +292,13 @@ int AppTask::Init()
     static CommonCaseDeviceServerInitParams initParams;
     static DefaultTestEventTriggerDelegate sTestEventTriggerDelegate{ ByteSpan(sTestEventTriggerEnableKey) };
     initParams.testEventTriggerDelegate = &sTestEventTriggerDelegate;
+
+    // Use PSAOperationalKeystore so the operational keypair is stored as a
+    // persistent PSA key (in ITS/NVM) and never needs to be exported as raw
+    // bytes.  PersistentStorageOperationalKeystore (the default) calls
+    // psa_export_key() which is unsupported by the TI CC35xx HSM DDK.
+    static chip::Crypto::PSAOperationalKeystore sPsaOperationalKeystore;
+    initParams.operationalKeystore = &sPsaOperationalKeystore;
 
     (void) initParams.InitializeStaticResourcesBeforeServerInit();
 

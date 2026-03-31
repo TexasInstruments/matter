@@ -41,6 +41,16 @@
 
 #define CHIP_CONFIG_SHA256_CONTEXT_SIZE (sizeof(unsigned int) * 76)
 
+// Workaround: TI DDK does not support psa_import_key with PSA_KEY_TYPE_DERIVE.
+// PSASessionKeystore will store raw HKDF key bytes and use the
+// HKDF_EXTRACT + HKDF_EXPAND split path instead of psa_key_derivation_input_key.
+#define CHIP_CRYPTO_PSA_HKDF_IMPORT_WORKAROUND 1
+
+// Workaround: TI CC35xx HSM does not support the multi-step streaming AEAD API
+// (psa_aead_update returns PSA_ERROR_GENERIC_ERROR). Use one-shot psa_aead_encrypt /
+// psa_aead_decrypt instead, which the HSM does support.
+#define CHIP_CRYPTO_PSA_AES_CCM_ONESHOT_WORKAROUND 1
+
 // ==================== General Configuration Overrides ====================
 
 #ifndef CHIP_CONFIG_MAX_UNSOLICITED_MESSAGE_HANDLERS

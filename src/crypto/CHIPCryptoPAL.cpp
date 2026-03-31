@@ -306,8 +306,17 @@ CHIP_ERROR Spake2p::Init(const uint8_t * context, size_t context_len)
 
 CHIP_ERROR Spake2p::WriteMN()
 {
-    ReturnErrorOnFailure(InternalHash(spake2p_M_p256, sizeof(spake2p_M_p256)));
-    ReturnErrorOnFailure(InternalHash(spake2p_N_p256, sizeof(spake2p_N_p256)));
+    // spake2p_M_p256 / spake2p_N_p256 are .rodata constants. On platforms where .rodata
+    // is placed in flash (e.g. TI CC35XX: 0x14xxxxxx), the HSM DMA engine cannot read
+    // from that address space and raises a bus fault. Copy to stack RAM first so that the
+    // underlying psa_hash_update() always receives a DMA-accessible pointer.
+    uint8_t M_ram[sizeof(spake2p_M_p256)];
+    uint8_t N_ram[sizeof(spake2p_N_p256)];
+    memcpy(M_ram, spake2p_M_p256, sizeof(spake2p_M_p256));
+    memcpy(N_ram, spake2p_N_p256, sizeof(spake2p_N_p256));
+
+    ReturnErrorOnFailure(InternalHash(M_ram, sizeof(M_ram)));
+    ReturnErrorOnFailure(InternalHash(N_ram, sizeof(N_ram)));
 
     return CHIP_NO_ERROR;
 }
