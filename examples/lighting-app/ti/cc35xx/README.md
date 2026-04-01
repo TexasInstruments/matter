@@ -6,10 +6,10 @@ Instruments CC35XX family of Wireless MCUs.
 This is an early, experimental release of Matter on the TI CC35xx platform. 
 
 Features enabled in this release:
-- Matter Lighting Appplication
+- Matter Lighting Application
 - Ability to connect to AP (hardcoded credentials only)
     - Connectivity with AP is assumed to be stable
-- Work based on Matter v1.4 spedcification
+- Work based on Matter v1.4 specification
 
 Features not currently enabled in this release:
 - Support for unstable AP connections
@@ -17,7 +17,6 @@ Features not currently enabled in this release:
 - Over the Air (OTA) Update Support
 - Intermittently Connected Devices (ICD) Support
 - BLE based commissioning onto a Wi-Fi network
-- Matter v1.4 support
 
 Limited testing has been performed. Matter Commissioning (onnetwork) and
 the On/Off commands in the On/Off Cluster have been tested. Test coverage will
@@ -32,7 +31,7 @@ be improved for future releases.
         -   [Compilation](#compilation)
     -   [Programming](#programming)
         -   [Code Composer Studio](#code-composer-studio)
-        -   [UniFlash](#uniflash)
+        -   [Wi-Fi Toolbox](#wi-fi-toolbox)
     -   [Viewing Logging Output](#viewing-logging-output)
     -   [Running the Example](#running-the-example)
     -   [TI Support](#ti-support)
@@ -62,6 +61,18 @@ the Texas Instruments devices.
 | Green LED Blinking State                         | Identify Trigger Effect in progress    |
 | Green LED Off State                              | No Identify Trigger Effect in progress |
 
+## Prerequisites
+
+**Hardware:**
+- LP-EM-CC35X1 Rev A LaunchPad
+
+**Software:**
+- SimpleLink Wi-Fi SDK `9.22.00.15`
+- SysConfig `1.26.1`
+- SimpleLink Wi-Fi Toolbox `4.1.8`
+
+> **Note:** SysConfig and SimpleLink Wi-Fi Toolbox are installed by the SimpleLink Wi-Fi SDK installer and do not need to be installed separately.
+
 ## Building
 
 ### Preparation
@@ -70,23 +81,14 @@ Some initial setup is necessary for preparing the build environment. This
 section will need to be done when migrating to new versions of the SDK. This
 guide assumes that the environment is linux based, and recommends Ubuntu 22.04.
 
--   Download and install [SysConfig][sysconfig]. For CC35XX, you will need to
-    use the Sysconfig installer in the CC35XX SDK. Please refer to the
-    SDK installation instructions on how to install Sysconfig.
+> **Note:** Before building, complete the environment setup steps in the
+> [CC35XX Matter Getting Started Guide][getting-started], including cloning the
+> repository, bootstrapping, and copying the SDK into the Matter tree.
 
--   Run the bootstrap script to setup the build environment.
--   Note, in order to build the chip-tool and ota-provider examples, a recursive
-    submodule checkout is required for the linux platform as seen in the command
-    below.
+-   Download and install the [SimpleLink Wi-Fi SDK][simplelink-wifi-sdk] (`9.22.00.15`).
+    SysConfig and the SimpleLink Wi-Fi Toolbox are included in the SDK installer.
 
-    ```
-    $ cd ~/connectedhomeip
-    $ source ./scripts/bootstrap.sh
-    $ ./scripts/checkout_submodules.py --shallow --platform cc35xx linux --recursive
-
-    ```
-
-This example requires mbedtls version 3.6.2. Please update the mbedtls submodule to the v3.6.2 tag.
+    > **Note:** This example has been validated with SimpleLink Wi-Fi SDK `9.22.00.15`. Other versions are not guaranteed to be compatible.
 
 ### Compilation
 
@@ -96,7 +98,7 @@ Ninja to build the executable.
 -   Activate the build environment with the repository activate script.
 
     ```
-    $ cd ~/connectedhomeip
+    $ cd {matter-root}
     $ source ./scripts/activate.sh
 
     ```
@@ -104,13 +106,13 @@ Ninja to build the executable.
 -   Run the build to produce a default executable. By default on Linux both the
     TI SimpleLink SDK and Sysconfig are located in a `ti` folder in the user's
     home directory, and you must provide the absolute path to them. For example
-    `/home/username/ti/sysconfig_1.23.1`. On Windows the default directory is
+    `/home/username/ti/sysconfig_1.26.1`. On Windows the default directory is
     `C:\ti`. Take note of this install path, as it will be used in the next
     step.
 
     ```
-    $ cd ~/connectedhomeip/examples/lighting-app/ti/cc35xx
-    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.23.1\" ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_3_1_12\""
+    $ cd {matter-root}/examples/lighting-app/ti/cc35xx
+    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.1\" ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_1_8\" ti_simplelink_wifi_sdk_root=\"$HOME/ti/simplelink_wifi_sdk_9_22_00_15\""
     $ ninja -C out/debug
 
     ```
@@ -119,18 +121,18 @@ Ninja to build the executable.
     to the GN call.
 
     ```
-    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.23.1\" target_defines=[\"TI_ATTESTATION_CREDENTIALS=1\"] chip_generate_link_map_file=true ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_3_1_12\""
+    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.1\" target_defines=[\"TI_ATTESTATION_CREDENTIALS=1\"] chip_generate_link_map_file=true ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_1_8\" ti_simplelink_wifi_sdk_root=\"$HOME/ti/simplelink_wifi_sdk_9_22_00_15\""
     ```
 
 ## Programming
 
-Loading the built image onto a LaunchPad is supported via the Simpleink Wi-Fi Toolbox. To learn about how to program with the Wi-Fi toolbox, please refer to the documentation in the toolbox directory.
+Loading the built image onto a LaunchPad is supported via the SimpleLink Wi-Fi Toolbox. To program the Matter image using the toolbox, run the below command with the appropriate path to the `tool_settings.json` file in your setup:
 
-To program the Matter image using the toolbox, make sure to point to the following files from the example's `out/debug` directory:
-1. `programming_action_request.sign.bin` for the Programming Action Request field
-2. `vendor_image.sign.bin` for the Vendor Image field
+```
+sudo ./simplelink-wifi-toolbox programmer -i XDS110 -param1 auto programming --tool_settings {matter-root}/examples/lighting-app/ti/cc35xx/out/debug/tool_settings.json --verbose
+```
 
-If unlocking JTAG for debug purposes is required, make sure to point to the `debug_action_request.sign.bin` file from the example's `out/debug`
+For more details on programming with the Wi-Fi Toolbox, refer to the [Programmer User Guide][programmer_user_guide].
 
 ### Code Composer Studio
 
@@ -187,7 +189,7 @@ terminal emulator to that port to see the output with the following options:
 
 The first step to bring the Matter device onto the network is to provision it.
 
-The SSID, Password, and WPA Security Type of the AP are listed as defines '`AP_SSID`, `AP_PASSWORD`, and `WLAN_SEC_TYPE` at the top of `src/platform/ti/cc35xx/ConnectivityManagerImpl.cpp`. Please put in your AP credentials here. Upon device reset, the launchpad will attempt to connect to the AP specified. 
+The SSID, Password, and WPA Security Type of the AP are listed as defines `AP_SSID`, `AP_PASSWORD`, and `WLAN_SEC_TYPE` at the top of `src/platform/ti/cc35xx/ConnectivityManagerImpl.cpp`. Please put in your AP credentials here. Upon device reset, the launchpad will attempt to connect to the AP specified. 
 
 Once the device is connected to the local AP, commissioning can be triggered using "OnNetwork" configuration.
 
@@ -202,15 +204,15 @@ an existing Matter network. The following sections assume that a Matter network
 is already active.
 
 For insight into what other components are needed to run this example, please
-refer to our [Matter Getting Started Guide][matter-e2e-faq].
+refer to our [Matter Getting Started Guide][getting-started].
 
 The steps below should be followed to commission the lighting device onto the
 network and control it once it has been commissioned.
 
 **Step 0**
 
-Set up the CHIP tool by following the instructions outlined in our [Matter
-Getting Started Guide][matter-e2e-faq].
+Set up the CHIP tool by following the instructions outlined in the **Build the CHIP TOOL project** section in [Matter
+Fabric Formation][matter-fabric-formation] Guide.
 
 **Step 1**
 
@@ -222,6 +224,7 @@ on the CHIP tool:
 ./chip-tool pairing onnetwork <nodeID - e.g. 1> 20202021
 
 ```
+**Note:** nodeID parameter can be set to a desired value and the same value should be used in subsequent commands
 
 Once the device has been successfully commissioned, you will see the following
 message on the CHIP tool output:
@@ -237,7 +240,7 @@ An accompanying message will be seen from the device:
 
 ```
 
-Commissioning completeled successfully
+Commissioning completed successfully
 
 ```
 
@@ -276,6 +279,7 @@ For technical support, please consider creating a post on TI's [E2E forum][e2e].
 Additionally, we welcome any feedback.
 
 [matter]: https://csa-iot.org/all-solutions/matter/
+[simplelink-wifi-sdk]: https://www.ti.com/tool/download/SIMPLELINK-WIFI-SDK/9.22.00.15
 [ccs]: https://www.ti.com/tool/CCSTUDIO
 [ccs_after_launch]:
     https://software-dl.ti.com/ccs/esd/documents/users_guide/ccs_debug-main.html?configuration#after-launch
@@ -286,10 +290,10 @@ Additionally, we welcome any feedback.
 [ccs_manual_method]:
     https://software-dl.ti.com/ccs/esd/documents/users_guide/ccs_debug-main.html?configuration#manual-method
 [e2e]:
-    https://e2e.ti.com/support/wireless-connectivity/zigbee-thread-group/zigbee-and-thread/f/zigbee-thread-forum
-[matter-e2e-faq]:
-    https://e2e.ti.com/support/wireless-connectivity/zigbee-thread-group/zigbee-and-thread/f/zigbee-thread-forum/1082428/faq-cc2652r7-matter----getting-started-guide
-[ti_thread_dnd]:
-    https://www.ti.com/wireless-connectivity/thread/design-development.html
-[ot_border_router_setup]: https://openthread.io/guides/border-router/build
-[uniflash]: https://www.ti.com/tool/download/UNIFLASH
+    https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum
+[getting-started]:
+    ../../../../docs/guides/ti/cc35xx_matter_getting_started.md
+[matter-fabric-formation]:
+    https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AaOmgef6GwJcKObNX9npTQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST   
+[programmer_user_guide]:
+    https://software-dl.ti.com/simplelink/esd/simplelink_wifi_sdk/9.22.00.15/exports/docs/WiFi-toolbox/html/WiFi-toolbox/programmer_user_guide.html

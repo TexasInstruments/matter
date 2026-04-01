@@ -119,7 +119,7 @@ Below are several resources available for Matter development:
 -   [Matter Build Guide](../BUILDING.md)
 -   [Matter over Thread Getting Started](https://dev.ti.com/tirex/explore/node?node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)  
 -   [TI Matter over Wi-Fi For CC323x Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
--  [TI Matter over Wi-Fi For CC335x Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1556339/faq-cc3551e-matter----getting-started-guide)
+-  [TI Matter over Wi-Fi For CC335x Getting Started](./cc35xx_matter_getting_started.md)
 -   [TI Matter Application Development](https://dev.ti.com/tirex/explore/node?node=A__AXNOPYikmtBCHJ-L6eRivA__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 -   [TI Matter OTA Guide](https://dev.ti.com/tirex/explore/node?node=A__AYTiKtu5heqgH4KPFa.6RQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 

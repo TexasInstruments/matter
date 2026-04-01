@@ -42,8 +42,8 @@ To start development with Matter, refer to the following:
 -   Get started with Matter over Thread,
     [Matter Thread getting started](https://dev.ti.com/tirex/explore/node?a=AfkT0vQ__5.30.00.00&node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 
--   Get started with Matter over Wi-Fi,
-    [Matter Wi-Fi getting started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1556339/faq-cc3551e-matter----getting-started-guide)
+-   Get started with Matter over Wi-Fi on CC35XX,
+    [CC35XX Matter getting started](./docs/guides/ti/cc35xx_matter_getting_started.md)
     -   Matter Over Wi-Fi in this release is for evaluation purposes only (and
         not recommended for production).
 
