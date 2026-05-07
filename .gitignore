@@ -89,3 +89,7 @@ examples/*/esp32/dependencies.lock
 
 # jupyter temporary files
 .ipynb_checkpoints
+
+# cc35xx SDK
+third_party/ti_simplelink_sdk/repo_cc35xx/
+third_party/ti_simplelink_sdk/repo_cc35xx_v9_22_00_15_backup/

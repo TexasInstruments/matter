@@ -31,8 +31,13 @@
         "${workspaceFolder}/third_party/nlassert/repo/include/**",
         "${workspaceFolder}/third_party/nlio/repo/include/**"
     ],
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.formatOnSave": false
+    },
     "[cpp]": {
-        "editor.defaultFormatter": "xaver.clang-format"
+        "editor.defaultFormatter": "xaver.clang-format",
+        "editor.formatOnSave": false
     },
     "[dockerfile]": {
         "editor.defaultFormatter": "ms-azuretools.vscode-docker"
@@ -193,11 +198,22 @@
     "files.trimFinalNewlines": true,
     "C_Cpp.default.cppStandard": "gnu++17",
     "C_Cpp.default.cStandard": "gnu11",
-    "shellformat.flag": "-i 4 -ci",
     "cmake.configureOnOpen": false,
     "search.followSymlinks": false,
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8"
     },
-    "autopep8.args": ["--max-line-length", "132"]
+    "autopep8.args": [
+        "--max-line-length",
+        "132"
+    ],
+    "git.ignoreLimitWarning": true,
+    "clangd.path": "/home/labuser/work/matter_1_5/connectedhomeip/.environment/cipd/packages/pigweed/bin/clangd",
+    "clangd.arguments": [
+        //"--compile-commands-dir=/home/a1256909/matter/connectedhomeip/examples/lighting-app/ti/cc35xx/out/debug",
+        "--compile-commands-dir=${workspaceFolder}",  // Uses root compile_commands.json
+        "--background-index",
+        "--query-driver=/home/labuser/work/matter_1_5/connectedhomeip/.environment/cipd/packages/arm/bin/arm-none-eabi-*",
+        "--log=error"   //Suppress info/warning messages, show only errors
+    ]    
 }
