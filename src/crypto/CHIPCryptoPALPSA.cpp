@@ -28,6 +28,7 @@
 #include <lib/support/BufferWriter.h>
 #include <lib/support/BytesToHex.h>
 #include <lib/support/CHIPArgParser.hpp>
+#include <lib/support/CHIPMem.h>
 #include <lib/support/CodeUtils.h>
 #include <lib/support/SafeInt.h>
 #include <lib/support/SafePointerCast.h>
@@ -410,19 +411,65 @@ CHIP_ERROR FindFreeKeySlotInRange(psa_key_id_t & keyId, psa_key_id_t start, uint
 
 CHIP_ERROR PsaKdf::Init(const ByteSpan & secret, const ByteSpan & salt, const ByteSpan & info)
 {
-    psa_status_t status        = PSA_SUCCESS;
-    psa_key_attributes_t attrs = PSA_KEY_ATTRIBUTES_INIT;
+    // TI HSM workaround: PSA_ALG_HKDF with psa_key_derivation_input_bytes(SECRET)
+    // and psa_import_key(PSA_KEY_TYPE_DERIVE) are both unsupported by the TI DDK.
+    // Split into two explicit operations instead:
+    //   Step 1 — HKDF-EXTRACT: (salt, IKM) → PRK  using PSA_ALG_HKDF_EXTRACT
+    //   Step 2 — HKDF-EXPAND:  (PRK, info) → OKM  using PSA_ALG_HKDF_EXPAND
+    // Both steps use psa_key_derivation_input_bytes only — no psa_import_key needed.
 
-    psa_set_key_type(&attrs, PSA_KEY_TYPE_DERIVE);
-    psa_set_key_algorithm(&attrs, PSA_ALG_HKDF(PSA_ALG_SHA_256));
-    psa_set_key_usage_flags(&attrs, PSA_KEY_USAGE_DERIVE);
+    psa_status_t status;
+    uint8_t prk[PSA_HASH_LENGTH(PSA_ALG_SHA_256)]; // 32-byte PRK on stack
 
-    status = psa_import_key(&attrs, secret.data(), secret.size(), &mSecretKeyId);
-    LogPsaError(status);
-    psa_reset_key_attributes(&attrs);
+    // Step 1: HKDF-EXTRACT
+    {
+        psa_key_derivation_operation_t extractOp = PSA_KEY_DERIVATION_OPERATION_INIT;
+
+        status = psa_key_derivation_setup(&extractOp, PSA_ALG_HKDF_EXTRACT(PSA_ALG_SHA_256));
+        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+
+        status = psa_key_derivation_input_bytes(&extractOp, PSA_KEY_DERIVATION_INPUT_SALT, salt.data(), salt.size());
+        if (status != PSA_SUCCESS)
+        {
+            psa_key_derivation_abort(&extractOp);
+            LogPsaError(status);
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        status = psa_key_derivation_input_bytes(&extractOp, PSA_KEY_DERIVATION_INPUT_SECRET, secret.data(), secret.size());
+        if (status != PSA_SUCCESS)
+        {
+            psa_key_derivation_abort(&extractOp);
+            LogPsaError(status);
+            return CHIP_ERROR_INTERNAL;
+        }
+
+        status = psa_key_derivation_output_bytes(&extractOp, prk, sizeof(prk));
+        psa_key_derivation_abort(&extractOp);
+        VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
+    }
+
+    // Step 2: HKDF-EXPAND — mOperation is used by subsequent DeriveBytes() calls
+    status = psa_key_derivation_setup(&mOperation, PSA_ALG_HKDF_EXPAND(PSA_ALG_SHA_256));
+    if (status != PSA_SUCCESS)
+    {
+        memset(prk, 0, sizeof(prk));
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    // PRK is the SECRET input for HKDF-EXPAND; must be exactly PSA_HASH_LENGTH bytes
+    status = psa_key_derivation_input_bytes(&mOperation, PSA_KEY_DERIVATION_INPUT_SECRET, prk, sizeof(prk));
+    memset(prk, 0, sizeof(prk)); // zero PRK from stack immediately after use
+    if (status != PSA_SUCCESS)
+    {
+        LogPsaError(status);
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    status = psa_key_derivation_input_bytes(&mOperation, PSA_KEY_DERIVATION_INPUT_INFO, info.data(), info.size());
     VerifyOrReturnError(status == PSA_SUCCESS, CHIP_ERROR_INTERNAL);
 
-    return InitOperation(mSecretKeyId, salt, info);
+    return CHIP_NO_ERROR;
 }
 
 CHIP_ERROR PsaKdf::Init(const HkdfKeyHandle & hkdfKey, const ByteSpan & salt, const ByteSpan & info)

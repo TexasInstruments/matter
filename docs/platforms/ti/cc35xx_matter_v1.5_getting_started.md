@@ -51,7 +51,7 @@ git clone https://github.com/TexasInstruments/matter.git
 cd matter
 
 # Checkout the CC35XX Rev A Launchpad support branch
-git checkout develop-matter-v1.5-ti
+git checkout matter-v1.5-ti
 
 # Pull platform submodules
 # The linux platform is included to support building the chip-tool and ota-provider examples on the host machine
@@ -94,7 +94,6 @@ Refer to the [lighting-app README](../../../examples/lighting-app/ti/cc35xx/READ
 
 | Component | Version |
 |---|---|
-| Matter branch | `topic/cc35xx-rev-a-launchpad-support` |
 | SimpleLink Wi-Fi SDK | `10.10.00.18` |
 | SysConfig | `1.26.3` |
 | SimpleLink Wi-Fi Toolbox | `4.1.16` |
