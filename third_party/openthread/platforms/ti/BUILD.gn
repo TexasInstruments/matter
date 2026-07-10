@@ -33,6 +33,12 @@ config("openthread_ti_config") {
     "${openthread_ti_root}/src",
   ]
 
+  if (ti_simplelink_device_family == "cc27xx") {
+    include_dirs += [
+      "${ti_simplelink_sdk_root}/source/ti/dmm",
+    ]
+  }
+
   public_configs = [ "${openthread_root}:openthread_config" ]
   if (chip_openthread_ftd) {
     public_configs += [ "${openthread_root}:openthread_ftd_config" ]
@@ -64,12 +70,25 @@ source_set("libopenthread-ti") {
     "${openthread_root}/examples/platforms/utils/mac_frame.h",
     "${openthread_ti_root}/src/alarm.c",
     "${openthread_ti_root}/src/alarm_micro.c",
-    "${openthread_ti_root}/src/diag.c",
-    "${openthread_ti_root}/src/entropy.c",
     "${openthread_ti_root}/src/misc.c",
-    "${openthread_ti_root}/src/radio.c",
     "${openthread_ti_root}/src/settings.c",
   ]
+
+  if (ti_simplelink_device_family == "cc27xx") {
+    sources += [
+      "${openthread_ti_root}/src/cc23xx_cc27xx/entropy.c",
+      "${openthread_ti_root}/src/cc23xx_cc27xx/radio.c",
+      "${ti_simplelink_sdk_root}/source/ti/dmm/rcl_stub_dmm.c",
+      "${ti_simplelink_sdk_root}/source/ti/dmm/rcl_override_dmm.c",
+    ]
+    cflags += [ "-Wno-unused-variable" ]
+  } else {
+    sources += [
+      "${openthread_ti_root}/src/diag.c",
+      "${openthread_ti_root}/src/entropy.c",
+      "${openthread_ti_root}/src/radio.c",
+    ]
+  }
 
   if (chip_build_libshell) {
     public_deps += [ "..:libopenthread-platform" ]

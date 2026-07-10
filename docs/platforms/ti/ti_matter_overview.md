@@ -23,7 +23,7 @@ Wi-Fi™, Bluetooth Low Energy, 2.4GHz, Sub-1GHz devices and more, choose the MC
 or connectivity standard that fits your design. A one-time investment with the
 SimpleLink software development kit allows you to reuse often, opening the door
 to create unlimited applications. For more information, visit
-www.ti.com/simplelink.
+<www.ti.com/simplelink>.
 
 <hr>
 
@@ -81,12 +81,12 @@ handled by the platform implementation files.
 
 Below are several resources available for Matter development:
 
--   [Matter Protocol Overview](https://handbook.buildwithmatter.com/howitworks/roles/)
--   [Matter Build Guide](../../guides/BUILDING.md)
--   [Matter over Thread Getting Started](https://dev.ti.com/tirex/explore/node?node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
--   [TI Matter over Wi-Fi Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
--   [TI Matter Application Development](https://dev.ti.com/tirex/explore/node?node=A__AXNOPYikmtBCHJ-L6eRivA__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
--   [TI Matter OTA Guide](https://dev.ti.com/tirex/explore/node?node=A__AYTiKtu5heqgH4KPFa.6RQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
+- [Matter Protocol Overview](https://handbook.buildwithmatter.com/howitworks/roles/)
+- [Matter Build Guide](../../guides/BUILDING.md)
+- [Matter over Thread Getting Started](https://dev.ti.com/tirex/explore/node?node=A__AciOYyNq9gli.nsvJzBtQg__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
+- [TI Matter over Wi-Fi Getting Started](https://e2e.ti.com/support/wireless-connectivity/wi-fi-group/wifi/f/wi-fi-forum/1122413/faq-cc3235sf-matter----getting-started-guide)
+- [TI Matter Application Development](https://dev.ti.com/tirex/explore/node?node=A__AXNOPYikmtBCHJ-L6eRivA__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
+- [TI Matter OTA Guide](https://dev.ti.com/tirex/explore/node?node=A__AYTiKtu5heqgH4KPFa.6RQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST)
 
 <hr>
 
@@ -95,13 +95,9 @@ Below are several resources available for Matter development:
 Sample Matter applications are provided for the TI platform. These can be used
 as reference for your own application.
 
-| Example             |                                Device Support                                 |
-| ------------------- | :---------------------------------------------------------------------------: |
-| lighting-app        |    [CC13x4_26x4](../../../examples/lighting-app/ti/cc13x4_26x4/README.md)     |
-| light-switch-app    |  [CC13x4_26x4](../../../examples/light-switch-app/ti/cc13x4_26x4/README.md)   |
-| lock-app            |      [CC13x4_26x4](../../../examples/lock-app/ti/cc13x4_26x4/README.md)       |
-| pump-app            |      [CC13x4_26x4](../../../examples/pump-app/ti/cc13x4_26x4/README.md)       |
-| pump-controller-app | [CC13x4_26x4](../../../examples/pump-controller-app/ti/cc13x4_26x4/README.md) |
+| Example      | Device Support                                   |
+| ------------ | :----------------------------------------------: |
+| lighting-app | [CC27xx](../../../examples/lighting-app/ti/cc27xx/README.md) |
 
 <hr>
 
@@ -118,7 +114,7 @@ SimpleLink SDK.
 For instructions on how to program custom factory data on TI devices, please
 refer to the guide linked below.
 
--   [TI Factory Data User Guide](./matter-users-guide/ti_factory_data_user_guide.md)
+- [TI Factory Data User Guide](./matter-users-guide/ti_factory_data_user_guide.md)
 
 <hr>
 
@@ -127,7 +123,7 @@ refer to the guide linked below.
 For instructions on how to use the Matter ICD feature on TI devices, please
 refer to the guide linked below.
 
--   [Enabling ICD On TI Devices](./matter-users-guide/enabling_icd_on_ti_devices.md)
+- [Enabling ICD On TI Devices](./matter-users-guide/enabling_icd_on_ti_devices.md)
 
 <hr>
 
@@ -136,7 +132,7 @@ refer to the guide linked below.
 For instructions on how to configure the OpenThread build configuration for a
 Matter application, please refer to the guide linked below.
 
--   [OpenThread Library Configuration](./matter-users-guide/ti_openthread_library_usage.md)
+- [OpenThread Library Configuration](./matter-users-guide/ti_openthread_library_usage.md)
 
 ### TI Support
 

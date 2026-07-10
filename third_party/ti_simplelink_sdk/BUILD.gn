@@ -176,10 +176,12 @@ config("ti_simplelink_posix_config") {
 }
 
 freertos_target("freertos") {
-  if (ti_simplelink_device_family == "cc13x4_26x4" || ti_simplelink_device_family == "cc35xx") {
+  if (ti_simplelink_device_family == "cc13x4_26x4" || ti_simplelink_device_family == "cc35xx" ||
+      ti_simplelink_device_family == "cc27xx") {
     sources = [
       "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/port.c",
       "${freertos_root}/portable/GCC/ARM_CM33_NTZ/non_secure/portasm.c",
+      "${freertos_root}/portable/MemMang/heap_4.c",
     ]
   } else if (ti_simplelink_device_family == "cc32xx") {
     sources = [
@@ -190,7 +192,8 @@ freertos_target("freertos") {
 
   public_configs = [ ":ti_simplelink_freertos_config" ]
 
-  if (ti_simplelink_device_family == "cc13x4_26x4") {
+  if (ti_simplelink_device_family == "cc13x4_26x4" ||
+      ti_simplelink_device_family == "cc27xx") {
     # BLE has to have it's own heap config
     public_deps =
         [ "${chip_root}/third_party/ti_simplelink_sdk:ti_simplelink_sysconfig" ]

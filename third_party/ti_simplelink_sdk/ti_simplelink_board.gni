@@ -60,6 +60,12 @@ if (ti_simplelink_board == "LP_EM_CC1354P10_6" ||
   ti_simplelink_device_family_driverlib = "cc27xxx20"
   ti_simplelink_soc_family = "cc27xxx20"
   ti_simplelink_isa = "m33f"
+} else if (ti_simplelink_board == "LP_EM_CC2755P10" ||
+           ti_simplelink_board == "LP_EM_CC2755R10_BG") {
+  ti_simplelink_device_family = "cc27xx"
+  ti_simplelink_device_family_driverlib = "cc27xxx10"
+  ti_simplelink_soc_family = "cc27xxx10"
+  ti_simplelink_isa = "m33f"
 } else if (ti_simplelink_board == "CC3220SF_LAUNCHXL") {
   ti_simplelink_device_family = "cc32xx"
   ti_simplelink_soc_family = "cc32xx"

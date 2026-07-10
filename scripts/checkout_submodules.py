@@ -31,6 +31,7 @@ ALL_PLATFORMS = {
     'bl602',
     'bouffalolab',
     'cc13xx_26xx',
+    'cc27xx',
     'cc32xx',
     'cc35xx',
     'darwin',

@@ -225,9 +225,9 @@ template("ti_sysconfig") {
     defines = [
       "CC23X0",
     ]
-    if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
+    if (ti_simplelink_soc_family == "cc27xxx10") {
       defines += ["DeviceFamily_CC27XXX10"]
-    } else if (ti_simplelink_board == "LP_EM_CC2755P20"){
+    } else if (ti_simplelink_soc_family == "cc27xxx20") {
       defines += ["DeviceFamily_CC27XXX20"]
     }
   }
@@ -389,7 +389,7 @@ template("ti_simplelink_sdk") {
         rebase_path(target_gen_dir),
       ]
 
-      if (ti_simplelink_device_family == "cc27xx" && ti_simplelink_board == "LP_EM_CC2745R10_Q1") {
+      if (ti_simplelink_device_family == "cc27xx" && ti_simplelink_soc_family == "cc27xxx10") {
 
         outputs += [ "${target_gen_dir}/secure_drivers_cc27xxx10.a" , "${target_gen_dir}/hsmddk_cc27xxx10_its.a" ]
 
@@ -401,7 +401,7 @@ template("ti_simplelink_sdk") {
           "--secure-dest-path",
           rebase_path(target_gen_dir),
         ]
-      } else if (ti_simplelink_device_family == "cc27xx" && ti_simplelink_board == "LP_EM_CC2755P20") {
+      } else if (ti_simplelink_device_family == "cc27xx" && ti_simplelink_soc_family == "cc27xxx20") {
         outputs += [ "${target_gen_dir}/secure_drivers_cc27xxx20.a" , "${target_gen_dir}/hsmddk_cc27xxx20_its.a" ]
          args += [
             "--src-path-hsm",
@@ -449,10 +449,10 @@ template("ti_simplelink_sdk") {
         "CC23X0",
       ]
 
-      if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
-      defines += ["DeviceFamily_CC27XXX10"]
-      } else if (ti_simplelink_board == "LP_EM_CC2755P20"){
-      defines += ["DeviceFamily_CC27XXX20"]
+      if (ti_simplelink_soc_family == "cc27xxx10") {
+        defines += ["DeviceFamily_CC27XXX10"]
+      } else if (ti_simplelink_soc_family == "cc27xxx20") {
+        defines += ["DeviceFamily_CC27XXX20"]
       }
     }
 
@@ -551,9 +551,9 @@ template("ti_simplelink_sdk") {
         "${target_gen_dir}/driverlib." + driverlibExt,
       ]
 
-      if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
+      if (ti_simplelink_soc_family == "cc27xxx10") {
         libs += [ "${target_gen_dir}/secure_drivers_cc27xxx10.a" ,"${target_gen_dir}/hsmddk_cc27xxx10_its.a" ]
-      } else if (ti_simplelink_board == "LP_EM_CC2755P20"){
+      } else if (ti_simplelink_soc_family == "cc27xxx20") {
         libs += [ "${target_gen_dir}/secure_drivers_cc27xxx20.a" ,"${target_gen_dir}/hsmddk_cc27xxx20_its.a" ]
       }
     }
@@ -640,7 +640,7 @@ template("ti_simplelink_sdk") {
       ]
 
       sources += [
-        "${chip_root}/src/platform/ti/startup.c",
+        "${chip_root}/src/platform/ti/cc27xx/startup.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/ClockPLPF3_freertos.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/EventP_freertos.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/HwiPCC27XX_freertos.c",
@@ -710,11 +710,16 @@ template("ti_simplelink_sdk") {
     }
 
     if(ti_simplelink_device_family == "cc13x4_26x4"){
-      sources += ["${chip_root}/src/platform/ti/cc13x4_26x4/memory.c",]
+      sources += ["${chip_root}/src/platform/ti/cc13xx_26xx/memory.c",]
     }
 
     if (ti_simplelink_device_family == "cc27xx") {
-      sources += [ "${chip_root}/src/platform/ti/memory.c" ]
+      # TODO(improvement#1): cc27xx borrowing memory.c from cc13xx_26xx — needs own copy
+      # TI_heap_wrapper.c is NOT used — cc27xx uses FreeRTOS heap_4.c directly.
+      # TI_POSIX_FREERTOS_MEMORY_ENABLEADV enables the advanced realloc path which
+      # uses pvPortMalloc/vPortFree directly instead of calling pvPortRealloc.
+      sources += [ "${chip_root}/src/platform/ti/cc13xx_26xx/memory.c" ]
+      defines += [ "TI_POSIX_FREERTOS_MEMORY_ENABLEADV=1" ]
     }
 
     public_deps = [
@@ -747,9 +752,9 @@ template("ti_simplelink_sdk") {
       configs -= [ "${build_root}/config/compiler:warnings_default" ]  # removed for -Wshadow
       configs += [ ":${sdk_target_name}_posix_config" ]
       if(ti_simplelink_device_family == "cc13x4_26x4"){
-        sources = [ "${chip_root}/src/platform/ti/cc13x4_26x4/nvocmp.c", ]
+        sources = [ "${chip_root}/src/platform/ti/cc13xx_26xx/nvocmp.c", ]
       } else if(ti_simplelink_device_family == "cc27xx") {
-        sources = [ "${chip_root}/src/platform/ti/nvocmp.c",]
+        sources = [ "${ti_simplelink_sdk_root}/source/ti/common/nv/nvocmp.c",]
       } else if (ti_simplelink_device_family == "cc35xx") {
         sources = [ "${ti_simplelink_sdk_root}/source/ti/common/nv/nvocmp_cc35xx.c",]
         defines += [
@@ -849,7 +854,7 @@ template("ti_simplelink_sdk") {
       "${ti_simplelink_sdk_root}/source",
 
       # Eclipse the SDK config header from DMM
-      "${chip_root}/src/platform/ti/cc13x4_26x4",
+      "${chip_root}/src/platform/ti/cc13xx_26xx/cc13x4_26x4",
       "${chip_root}/src/platform/ti/cc13xx_26xx",
 
       # CHIPoBLE Added include dirs
@@ -930,12 +935,12 @@ template("ti_simplelink_sdk") {
       "FREERTOS",
     ]
 
-    if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
+    if (ti_simplelink_soc_family == "cc27xxx10") {
       libs += [
         "${ti_simplelink_sdk_root}/source/ti/drivers/rcl/lib/gcc/m33f/rcl_cc27xxx10.a",
         "${ti_simplelink_sdk_root}/source/ti/devices/cc27xxx10/rf_patches/lib/gcc/m33f/lrf_cc27xxx10.a",
-        ]
-    } else if (ti_simplelink_board == "LP_EM_CC2755P20"){
+      ]
+    } else if (ti_simplelink_soc_family == "cc27xxx20") {
       libs += [
         "${ti_simplelink_sdk_root}/source/ti/drivers/rcl/lib/gcc/m33f/rcl_cc27xxx20.a",
         "${ti_simplelink_sdk_root}/source/ti/devices/cc27xxx20/rf_patches/lib/gcc/m33f/lrf_cc27xxx20.a",
@@ -957,9 +962,9 @@ template("ti_simplelink_sdk") {
       "USE_HSM",
     ]
 
-    if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
+    if (ti_simplelink_soc_family == "cc27xxx10") {
       defines += ["DeviceFamily_CC27XXX10"]
-    } else if (ti_simplelink_board == "LP_EM_CC2755P20"){
+    } else if (ti_simplelink_soc_family == "cc27xxx20") {
       defines += ["DeviceFamily_CC27XXX20"]
     }
 
@@ -968,6 +973,7 @@ template("ti_simplelink_sdk") {
       # DMM/BLE:
 
       "${chip_root}/src/platform/ti/cc27xx",
+      "${chip_root}/src/platform/ti/cc13xx_26xx",
 
       #"${ti_simplelink_sdk_root}/source/",
       "${ti_simplelink_sdk_root}/source/ti/",
@@ -982,6 +988,7 @@ template("ti_simplelink_sdk") {
       "${ti_simplelink_sdk_root}/source/ti/ble/icall/inc",
       "${ti_simplelink_sdk_root}/source/ti/ble/icall/src",
       "${ti_simplelink_sdk_root}/source/ti/ble/icall/src/inc",
+      "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/icall/app",
       "${ti_simplelink_sdk_root}/source/ti/ble/inc",
       "${ti_simplelink_sdk_root}/source/ti/ble/npi/src",
       "${ti_simplelink_sdk_root}/source/ti/ble/osal/src/inc",
@@ -1069,10 +1076,10 @@ template("ti_simplelink_sdk") {
       ]
 
       sources = [
-        "${chip_root}/src/platform/ti/TI_heap_wrapper.c",
-        "${chip_root}/src/platform/ti/cc13x4_26x4/chipOBleProfile.c",
-        "${chip_root}/src/platform/ti/cc13x4_26x4/icall_FreeRTOS.c",
-        "${chip_root}/src/platform/ti/cc13x4_26x4/dmm_priority_ble_matter.c",
+        "${chip_root}/src/platform/ti/cc13xx_26xx/TI_heap_wrapper.c",
+        "${chip_root}/src/platform/ti/cc13xx_26xx/chipOBleProfile.c",
+        "${chip_root}/src/platform/ti/cc13xx_26xx/icall_FreeRTOS.c",
+        "${chip_root}/src/platform/ti/cc13xx_26xx/dmm_priority_ble_matter.c",
         "${ti_simplelink_sdk_root}/source/ti/ble5stack/common/cc26xx/freertos/bget.c",
         "${ti_simplelink_sdk_root}/source/ti/ble5stack/common/cc26xx/rcosc/rcosc_calibration.c",
         "${ti_simplelink_sdk_root}/source/ti/dmm/apps/common/ble_remote_display/stack/osal_icall_ble.c",
@@ -1082,7 +1089,7 @@ template("ti_simplelink_sdk") {
 
       if (ti_simplelink_device_family == "cc13x4_26x4") {
         sources += [
-          "${chip_root}/src/platform/ti/cc13x4_26x4/ble_user_config.c",
+          "${chip_root}/src/platform/ti/cc13xx_26xx/cc13x4_26x4/ble_user_config.c",
           "${ti_simplelink_sdk_root}/source/ti/ble5stack_flash/host/gatt_uuid.c",
           "${ti_simplelink_sdk_root}/source/ti/ble5stack_flash/host/gattservapp_util.c",
           "${ti_simplelink_sdk_root}/source/ti/ble5stack_flash/icall/app/icall_api_lite.c",
@@ -1128,7 +1135,8 @@ template("ti_simplelink_sdk") {
         "-Wno-implicit-function-declaration",  # asm not defined
       ]
       sources = [
-        "${chip_root}/src/platform/ti/cc13x4_26x4/chipOBleProfile.c",
+        # TODO(improvement#1): cc27xx borrowing chipOBleProfile.c from cc13xx_26xx — cc27xx should own its copy
+        "${chip_root}/src/platform/ti/cc13xx_26xx/chipOBleProfile.c",
         "${chip_root}/src/platform/ti/cc27xx/osal_icall_ble.c",
         "${chip_root}/src/platform/ti/cc27xx/util.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/MessageQueueP_freertos.c",
@@ -1136,8 +1144,9 @@ template("ti_simplelink_sdk") {
         "${ti_simplelink_sdk_root}/source/ti/ble/host/gatt/src/gatt_uuid.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/host/gatt/src/gattservapp_util.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/icall/app/src/icall_POSIX.c",
-        "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/icall/app/src/icall_cc23x0.c",
+        "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/icall/app/src/icall.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/icall/app/src/icall_user_config.c",
+        "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/health_toolkit/src/ble_sys_stat.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/app_util/config/src/ble_user_config.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/stack_util/lib_opt/rom_init.c",
         "${ti_simplelink_sdk_root}/source/ti/ble/services/dev_info/src/dev_info_service.c",

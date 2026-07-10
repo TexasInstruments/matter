@@ -18,7 +18,7 @@ import("//build_overrides/ti_simplelink_sdk.gni")
 
 import("${build_root}/toolchain/flashable_executable.gni")
 import("${chip_root}/src/platform/device.gni")
-import("${chip_root}/src/platform/ti/cc35xx/factory_data_config.gni")
+import("${chip_root}/src/platform/ti/factory_data_config.gni")
 import("ti_simplelink_board.gni")
 import("ti_simplelink_sdk.gni")
 
@@ -93,7 +93,7 @@ template("ti_simplelink_executable") {
     } else if (ti_simplelink_device_family == "cc35xx") {
       ldscript = "${chip_root}/src/platform/ti/cc35xx/cc35xx_freertos.lds"
     } else if (ti_simplelink_device_family == "cc27xx") {
-      if(ti_simplelink_board == "LP_EM_CC2745R10_Q1"){
+      if (ti_simplelink_soc_family == "cc27xxx10") {
         if (custom_factory_data) {
           ldscript = "${chip_root}/src/platform/ti/cc27xx/cc27xxx10_freertos_factory_data.lds"
         } else {

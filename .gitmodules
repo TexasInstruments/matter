@@ -181,11 +181,17 @@
         path = third_party/ti_simplelink_sdk/repo_cc35xx
         url = https://github.com/TexasInstruments/simplelink-wifi-sdk
         platforms = cc35xx
+[submodule "third_party/ti_simplelink_sdk/repo_cc23xx_cc27xx"]
+	path = third_party/ti_simplelink_sdk/repo_cc23xx_cc27xx
+	url = https://github.com/TexasInstruments/simplelink-lowpower-f3-sdk.git
+	branch = lpf3-9.20_ea
+	platforms = cc27xx
 [submodule "third_party/openthread/ot-ti"]
 	path = third_party/openthread/ot-ti
 	url = https://github.com/TexasInstruments/ot-ti.git
-	branch = main
-	platforms = cc13xx_26xx
+	branch = thread-v1.4-ti
+	platforms = cc13xx_26xx,cc27xx
+	recursive = true
 [submodule "third_party/silabs/matter_support"]
 	path = third_party/silabs/matter_support
 	url = https://github.com/SiliconLabsSoftware/matter_support.git
