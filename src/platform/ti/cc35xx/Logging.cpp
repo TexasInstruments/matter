@@ -47,9 +47,20 @@ extern "C" void _unlink(void){ for(;;);}
 #include <ti/drivers/UART2.h>
 
 #include <stdio.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+
+#define LOGGING_UART_BAUD_RATE 115200
 
 UART2_Handle sDebugUartHandle;
 char sDebugUartBuffer[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+
+// Mutex to protect logging buffer from concurrent access
+static SemaphoreHandle_t sLoggingMutex = NULL;
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+static StaticSemaphore_t sLoggingMutexBuffer;
+#endif
 
 #if MATTER_CC35XX_PLATFORM_LOG_ENABLED
 extern "C" int cc35xxLogInit(void)
@@ -58,17 +69,31 @@ extern "C" int cc35xxLogInit(void)
 
     UART2_Params_init(&uartParams);
     // Most params can be default because we only send data, we don't receive
-    uartParams.baudRate = 115200;
+    uartParams.baudRate = LOGGING_UART_BAUD_RATE;
 
     sDebugUartHandle = UART2_open(CONFIG_UART2_0, &uartParams);
+
+    // Initialize logging mutex for thread-safe buffer access
+#if (configSUPPORT_STATIC_ALLOCATION == 1)
+    sLoggingMutex = xSemaphoreCreateMutexStatic(&sLoggingMutexBuffer);
+#else
+    sLoggingMutex = xSemaphoreCreateMutex();
+#endif
+    assert(sLoggingMutex != NULL);
+
     return 0;
 }
 
 extern "C" void cc35xxVLog(const char * msg, va_list v)
 {
-    int ret;
+    // Drop messages if logging not initialized (e.g., logging called before cc35xxLogInit)
+    if (sLoggingMutex == NULL)
+    {
+        return;
+    }
 
-    ret = vsnprintf(sDebugUartBuffer, sizeof(sDebugUartBuffer), msg, v);
+    xSemaphoreTake(sLoggingMutex, portMAX_DELAY);
+    int ret = vsnprintf(sDebugUartBuffer, sizeof(sDebugUartBuffer), msg, v);
     if (0 < ret)
     {
         // PuTTY likes \r\n
@@ -78,6 +103,7 @@ extern "C" void cc35xxVLog(const char * msg, va_list v)
 
         UART2_write(sDebugUartHandle, sDebugUartBuffer, len, NULL);
     }
+    xSemaphoreGive(sLoggingMutex);
 }
 
 #else

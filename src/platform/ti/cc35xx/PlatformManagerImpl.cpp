@@ -33,6 +33,10 @@
 
 #include <lwip/tcpip.h>
 
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+#include "psa_fwu.h"
+#endif
+
 namespace chip {
 namespace DeviceLayer {
 
@@ -45,6 +49,12 @@ CHIP_ERROR PlatformManagerImpl::_InitChipStack(void)
     // Initialize the configuration system.
     err = Internal::CC35XXConfig::Init();
     SuccessOrExit(err);
+
+#if CHIP_DEVICE_CONFIG_ENABLE_OTA_REQUESTOR
+    // Must be called before any other PSA FWU API. Reads the boot report and
+    // initializes component state — required for IsFirstImageRun() to detect TRIAL state.
+    psa_fwu_init();
+#endif
 
     // Call _InitChipStack() on the generic implementation base class
     // to finish the initialization process.

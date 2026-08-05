@@ -37,6 +37,7 @@
 
 #include <platform/ti/cc35xx/CC35XXConfig.h>
 #include <platform/ti/cc35xx/ConnectivityManagerImpl.h>
+#include <platform/ti/cc35xx/NetworkCommissioningWiFiDriver.h>
 #include <platform/ti/cc35xx/ti_wifi_structs.h>
 
 #include <lwip/dns.h>
@@ -48,7 +49,7 @@
 
 #include <network_lwip.h>
 #include <ti/drivers/net/wifi/wifi_host_driver/inc_adapt/osi_kernel.h>
-#include <ti/drivers/net/wifi/wifi_host_driver/inc_adapt/wlan_if.h>
+#include "wlan_if_cc35xx.h"
 
 #include <ti/drivers/Board.h>
 
@@ -71,12 +72,6 @@
 #define HWREG(x) (*((volatile unsigned long *) (x))) // TODO temporary need to be removed
 #define ICACHE_BASE 0x41902000                       // TODO temporary need to be removed, only for M3, M33 has different address
 
-// Configure the AP SSID, Password and Security
-// This release supports only hardcoded configs for Wi-Fi Access Points
-
-#define AP_SSID "WLP_Test_2p4Ghz"
-#define AP_PASSWORD "12345678"
-#define WLAN_SEC_TYPE WLAN_SEC_TYPE_WPA_WPA2
 
 using namespace ::chip;
 using namespace ::chip::Inet;
@@ -93,7 +88,7 @@ ConnectivityManagerImpl ConnectivityManagerImpl::sInstance;
 ConnectivityManager::WiFiStationMode ConnectivityManagerImpl::_GetWiFiStationMode(void)
 {
     cc35xxLog("ConnectivityManagerImpl::_GetWiFiStationMode()\n\r");
-    return kWiFiStationMode_Disabled;
+    return IS_BIT_SET(ActiveNetIfBitMap, NET_IF_STA_BIT) ? kWiFiStationMode_Enabled : kWiFiStationMode_Disabled;
 }
 
 bool ConnectivityManagerImpl::_IsWiFiStationEnabled(void)
@@ -111,12 +106,13 @@ CHIP_ERROR ConnectivityManagerImpl::_SetWiFiStationMode(WiFiStationMode val)
 bool ConnectivityManagerImpl::_IsWiFiStationProvisioned(void)
 {
     cc35xxLog("ConnectivityManagerImpl::_IsWiFiStationProvisioned()\n\r");
-    return true;
+    return NetworkCommissioning::CC35XXWiFiDriver::GetInstance().HasStagedNetwork();
 }
 
 void ConnectivityManagerImpl::_ClearWiFiStationProvision(void)
 {
     cc35xxLog("ConnectivityManagerImpl::_ClearWiFiStationProvision()\n\r");
+    NetworkCommissioning::CC35XXWiFiDriver::GetInstance().ClearNetworkConfig();
 }
 
 CHIP_ERROR ConnectivityManagerImpl::_SetWiFiAPMode(WiFiAPMode val)
@@ -227,6 +223,7 @@ void WlanStackEventHandler(WlanEvent_t * pWlanEvent)
         if (pWlanEventConnect->Status < 0)
         {
             Report("\n\r[WLAN EVENT HANDLER] Connection failed with status: %d\n\r", pWlanEventConnect->Status);
+            NetworkCommissioning::CC35XXWiFiDriver::GetInstance().OnConnectResult(false);
             osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
             break;
         }
@@ -258,6 +255,7 @@ void WlanStackEventHandler(WlanEvent_t * pWlanEvent)
             network_set_up(staif);
         }
 
+        NetworkCommissioning::CC35XXWiFiDriver::GetInstance().OnConnectResult(true);
         osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
     }
     break;
@@ -280,41 +278,63 @@ void WlanStackEventHandler(WlanEvent_t * pWlanEvent)
         Report("[WLAN EVENT HANDLER] Number of scan results received: %d \n\r", numResults);
         Report("[WLAN SCAN] Results:\n\r");
 
-        char ssid[WLAN_SSID_MAX_LENGTH + 1];
-        char bssid[WLAN_BSSID_LENGTH + 1];
-        bool targetApFound = false;
+        // Store scan results in the WiFi driver
+        NetworkCommissioning::CC35XXWiFiDriver & wifiDriver = NetworkCommissioning::CC35XXWiFiDriver::GetInstance();
+        NetworkCommissioning::WiFiScanResponse * scanResults = nullptr;
+        uint8_t maxScanResults = wifiDriver.GetScanResultsBuffer(scanResults);
+        uint8_t scanCount    = (numResults < maxScanResults) ? numResults : maxScanResults;
 
-        for (int index = 0; index < numResults; index++)
+        for (uint32_t index = 0; index < scanCount; index++)
         {
-            os_memset(ssid, 0, sizeof(ssid));
-            os_memcpy(ssid, pEventScanResult->NetworkListResult[index].Ssid, pEventScanResult->NetworkListResult[index].SsidLen);
-            os_memset(bssid, 0, sizeof(bssid));
-            os_memcpy(bssid, pEventScanResult->NetworkListResult[index].Bssid, WLAN_BSSID_LENGTH);
+            const WlanNetworkEntry_t & entry = pEventScanResult->NetworkListResult[index];
 
-            // Check if this is our target AP
-            bool isTargetAP = (strcmp(ssid, AP_SSID) == 0);
-            if (isTargetAP)
-            {
-                targetApFound = true;
-            }
+            Report("SCAN : SSID = %s, CH = %d, RSSI = %d\n\r", entry.Ssid, entry.Channel, entry.Rssi);
 
-            Report("SCAN : %02d : %32s : %02x:%02x:%02x:%02x:%02x:%02x : CH=%2d, SEC=%04x, RSSI=%3d %s\n\r", index, ssid, bssid[0],
-                   bssid[1], bssid[2], bssid[3], bssid[4], bssid[5], pEventScanResult->NetworkListResult[index].Channel,
-                   pEventScanResult->NetworkListResult[index].SecurityInfo, pEventScanResult->NetworkListResult[index].Rssi,
-                   isTargetAP ? "<<< TARGET AP" : "");
+            uint8_t ssidLen = entry.SsidLen < WLAN_SSID_MAX_LENGTH ? entry.SsidLen : WLAN_SSID_MAX_LENGTH;
+
+            scanResults[index].ssidLen = ssidLen;
+            memcpy(scanResults[index].ssid, entry.Ssid, ssidLen);
+            memcpy(scanResults[index].bssid, entry.Bssid, 6);
+            scanResults[index].channel = entry.Channel;
+            scanResults[index].rssi    = entry.Rssi;
+
+            // Map SDK SecurityInfo bits to Matter WiFiSecurityBitmap
+            using WiFiSecBitmap = chip::app::Clusters::NetworkCommissioning::WiFiSecurityBitmap;
+            uint8_t secBitmap   = WLAN_SCAN_RESULT_SEC_TYPE_BITMAP(entry.SecurityInfo);
+            scanResults[index].security.ClearAll();
+            if (secBitmap == 0)
+                scanResults[index].security.Set(WiFiSecBitmap::kUnencrypted);
+            if (secBitmap & 0x01)
+                scanResults[index].security.Set(WiFiSecBitmap::kWep);
+            if (secBitmap & 0x02)
+                scanResults[index].security.Set(WiFiSecBitmap::kWpaPersonal);
+            if (secBitmap & 0x04)
+                scanResults[index].security.Set(WiFiSecBitmap::kWpa2Personal);
+            if (secBitmap & 0x08)
+                scanResults[index].security.Set(WiFiSecBitmap::kWpa3Personal);
+
+            wifiDriver.IncrementScanResultCount();
         }
 
-        if (!targetApFound)
+        // No separate WLAN_EVENT_SCAN_COMPLETED event exists for STA scanning.
+        // All results are delivered in this single event, so invoke the callback now.
+        CLR_STATUS_BIT(app_CB.Status, STATUS_BIT_SCAN_RUNNING);
+        osi_SyncObjSignal(&app_CB.eventCompletedScanObj);
+        auto scanCallback = wifiDriver.GetScanCallback();
+        if (scanCallback != nullptr)
         {
-            Report("\n\r[WARNING] Target AP '%s' NOT FOUND in scan results!\n\r", AP_SSID);
+            auto * cb  = scanCallback;
+            auto * iter = wifiDriver.SetupAndGetScanIterator();
+            wifiDriver.SetScanCallback(nullptr);
+            wifiDriver.SetScanInProgress(false);
+            DeviceLayer::SystemLayer().ScheduleLambda([cb, iter]() {
+                    cb->OnFinished(NetworkCommissioning::Status::kSuccess, CharSpan(), iter);
+            });
         }
         else
         {
-            Report("\n\r[INFO] Target AP '%s' found in scan results\n\r", AP_SSID);
+            ChipLogError(DeviceLayer, "[WLAN EVENT HANDLER] No scan callback registered!");
         }
-
-        // Signal scan completion
-        osi_SyncObjSignal(&app_CB.eventCompletedScanObj);
     }
     break;
     case WLAN_EVENT_ADD_PEER: {
@@ -431,14 +451,14 @@ void WlanStackEventHandler(WlanEvent_t * pWlanEvent)
     case WLAN_EVENT_AUTHENTICATION_REJECTED: {
         Report("\n\r--> WlanStackEventHandler WLAN_EVENT_AUTHENTICATION_REJECTED\n\r");
         Report("\n\r[WLAN EVENT] Authentication rejected - check credentials\n\r");
-        // Signal connection event to unblock waiting code
+        NetworkCommissioning::CC35XXWiFiDriver::GetInstance().OnConnectResult(false);
         osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
     }
     break;
     case WLAN_EVENT_ASSOCIATION_REJECTED: {
         Report("\n\r--> WlanStackEventHandler WLAN_EVENT_ASSOCIATION_REJECTED\n\r");
         Report("\n\r[WLAN EVENT] Association rejected\n\r");
-        // Signal connection event to unblock waiting code
+        NetworkCommissioning::CC35XXWiFiDriver::GetInstance().OnConnectResult(false);
         osi_SyncObjSignal(&app_CB.CON_CB.connectEventSyncObj);
     }
     break;
@@ -578,6 +598,17 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
         Report("Wlan_Set(WLAN_SET_TX_CTRL) failed: %d\n\r", ret);
     }
 
+    // Load saved WiFi credentials from KVS
+    NetworkCommissioning::CC35XXWiFiDriver & wifiDriver = NetworkCommissioning::CC35XXWiFiDriver::GetInstance();
+    wifiDriver.Init();
+    
+     if (!wifiDriver.HasStagedNetwork())
+    {
+        // No commissioned credentials. Delete any stale profiles from a previous
+        // boot or failed commissioning attempt to prevent auto-connect to an old AP.
+        wifiDriver.DeleteWifiProfile();        
+    }   
+
     Report("\n\r** Wlan_RoleUp(WLAN_ROLE_STA) **\n\r");
 
     // Check if network station is already active
@@ -630,77 +661,62 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
         Report("Wlan_RoleUp success!\n\r");
     }
 
-    Report("\n\r** Wlan_Scan(BAND_SEL_BOTH, 30) **\n\r");
-    scanCommon_t scanCommo;
-    os_memset(&scanCommo, 0x0, sizeof(scanCommon_t));
+    // Set autoPolicy=1 to enable CME auto-connect when a Wi-Fi profile exists.
+    // Must be set even if the device is not commissioned to allow auto-connect
+    // to the Wi-Fi profile added during BLE commissioning
+    WlanPolicySetGet_t connPolicy;
+    os_memset(&connPolicy, 0, sizeof(connPolicy));
+    connPolicy.autoPolicy = 1;
+    connPolicy.fastPolicy  = 0;
+    Wlan_Set(WLAN_SET_CONNECTION_POLICY, &connPolicy);    
 
-    // options are BAND_SEL_ONLY_2_4GHZ , BAND_SEL_ONLY_5GHZ , BAND_SEL_BOTH
-    scanCommo.Band = BAND_SEL_BOTH;
-
-    // Clear scan sync object before starting scan
-    osi_SyncObjClear(&app_CB.eventCompletedScanObj);
-
-    ret = Wlan_Scan(WLAN_ROLE_STA, &scanCommo, 30);
-    if (ret != 0)
+    // Check if the device was commissioned before and has a staged network
+    if (!wifiDriver.HasStagedNetwork())
     {
-        Report("\n\r[ERROR]_Init: Wlan_Scan failed: %d\n\r", ret);
-        return CHIP_ERROR_INTERNAL;
+        Report("No saved WiFi credentials; device awaiting commissioning.\n\r");
+        return CHIP_NO_ERROR;
     }
 
-    Report("Wlan_Scan initiated, waiting for scan results...\n\r");
-
-    // Wait for scan completion with timeout (10 seconds)
-    ret = osi_SyncObjWait(&app_CB.eventCompletedScanObj, OSI_WAIT_FOR_SECOND * 10);
-    if (ret != OSI_OK)
-    {
-        Report("\n\r[ERROR]_Init: Scan timeout or failed (%d)\n\r", ret);
-        return CHIP_ERROR_TIMEOUT;
-    }
-
-    Report("Scan completed successfully\n\r");
-
-    Report("\n\r** Wlan_Connect(SSID/TYPE/PSWD) **\n\r");
-
-    // Check if STA role is active before connecting
-    if (!IS_BIT_SET(ActiveNetIfBitMap, NET_IF_STA_BIT))
-    {
-        Report("\n\rNo STA role up, cannot connect\n\r");
-        return CHIP_ERROR_INCORRECT_STATE;
-    }
-
-    // Clear the connect event sync object before attempting connection
+    // Profile already in flash from previous commissioning. autoPolicy=1 is set,
+    // so when STA role activates, CME auto-connect fires automatically via
+    // cmeProfileManagerConfigChange(). Just wait for WLAN_EVENT_CONNECT.
     osi_SyncObjClear(&(app_CB.CON_CB.connectEventSyncObj));
 
-    ret = Wlan_Connect((const signed char *) AP_SSID, strlen(AP_SSID), NULL, WLAN_SEC_TYPE, AP_PASSWORD, strlen(AP_PASSWORD), 0);
-
-    if (ret != 0)
-    {
-        Report("\n\r[ERROR]_Init: Wlan_Connect failed: %d\n\r", ret);
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    Report("Wlan_Connect initiated successfully!\n\r");
-
-    // Wait for connection event with timeout
     if (!IS_STA_CONNECTED(app_CB.Status))
     {
         Report("Waiting for connection event...\n\r");
         ret = osi_SyncObjWait(&(app_CB.CON_CB.connectEventSyncObj), OSI_WAIT_FOR_SECOND * 60);
         if (ret != OSI_OK)
         {
-            Report("\n\r[ERROR]_Init: Timeout expired connecting to AP: %s (error: %d)\n\r", AP_SSID, ret);
+            Report("\n\r[ERROR]_Init: Timeout connecting to AP (error: %d)\n\r", ret);
             Wlan_Disconnect(WLAN_ROLE_STA, nullptr);
-            return CHIP_ERROR_TIMEOUT;
+            // Factory reset won't work on stack init failure, so return no error
+            return CHIP_NO_ERROR;
         }
-        Report("Connected to AP successfully!\n\r");
     }
 
-    Report("Wait for IP address assignment...\n\r");
-    while (isIp == 0)
+    if (!IS_STA_CONNECTED(app_CB.Status))
+    {
+        Report("\n\r[ERROR]_Init: Connection event fired but not connected (bad credentials?)\n\r");
+        // Factory reset won't work on stack init failure, so return no error
+        return CHIP_NO_ERROR;
+    }
+
+    Report("Connected to AP successfully!\n\r");
+    Report("Waiting for IP address assignment...\n\r");
+    const int kMaxIpWaitSeconds = 30;
+    for (int i = 0; i < kMaxIpWaitSeconds && isIp == 0; i++)
     {
         Report(".");
         os_sleep(1, 0);
     }
+
+    if (isIp == 0)
+    {
+        Report("\n\r[ERROR]_Init: Timeout waiting for IP address\n\r");
+        // Factory reset won't work on stack init failure, so return no error
+        return CHIP_NO_ERROR;
+    }    
 
     Report("\n\rReceived IP address successfully!\n\r");
     return CHIP_NO_ERROR;
@@ -708,7 +724,6 @@ CHIP_ERROR ConnectivityManagerImpl::_Init()
 
 void ConnectivityManagerImpl::_OnPlatformEvent(const ChipDeviceEvent * event)
 {
-    cc35xxLog("ConnectivityManagerImpl::_OnPlatformEvent()\n\r");
 
     if (event->Type == DeviceLayer::DeviceEventType::kCommissioningComplete)
     {
@@ -734,6 +749,14 @@ void ConnectivityManagerImpl::_OnIpAcquired()
     event.Type                           = DeviceEventType::kInterfaceIpAddressChanged;
     event.InterfaceIpAddressChanged.Type = InterfaceIpChangeType::kIpV4_Assigned;
     PlatformMgr().PostEventOrDie(&event);
+}
+
+// C-callable entry point invoked from network_lwip.c status_callback when DHCP
+// assigns an IP. Safe to call from any OS task context — PostEventOrDie only
+// enqueues to the CHIP event queue.
+extern "C" void cc35xx_on_ip_acquired(void)
+{
+    ConnectivityManagerImpl::_OnIpAcquired();
 }
 
 void ConnectivityManagerImpl::OnStationConnected()

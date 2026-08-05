@@ -70,6 +70,8 @@
 #include "ti/drivers/net/wifi/wifi_host_driver/inc_adapt/wlan_if.h"
 #include "ti_wifi_structs.h"
 
+#define ARP_POLL_DELAY_USEC 10000
+
 #if NO_SYS
 /* ... then we need information about the timer intervals: */
 #include "lwip/igmp.h"
@@ -202,24 +204,17 @@ int update_arp(void * ip_addr)
         if (result == ERR_OK)
         {
             result = ERR_CONN;
-            // wait here some time for reply to be received
-            while (1) // TODO this should be changed to timeout instead of endless while
+            const uint32_t kMaxArpRetries = 10;
+            for (uint32_t retry = 0; retry < kMaxArpRetries; retry++)
             {
-                osi_uSleep(100); // set time to other thread to get the reply
+                osi_uSleep(ARP_POLL_DELAY_USEC);
                 eth_ret  = NULL;
                 ip4_ret  = NULL;
                 arp_find = etharp_find_addr(pNetIf, (ip4_addr_t *) ip4_addr, &eth_ret, (const ip4_addr_t **) &ip4_ret);
-                if (arp_find < 0)
+                if ((arp_find >= 0) && ip4_ret && eth_ret && ip4_addr_cmp(ip4_ret, ip4_addr))
                 {
-                    result = ERR_CONN;
-                }
-                else
-                {
-                    if (ip4_ret && eth_ret && ip4_addr_cmp(ip4_ret, ip4_addr))
-                    {
-                        result = ERR_OK;
-                        break; // found
-                    }
+                    result = ERR_OK;
+                    break;
                 }
             }
         }
@@ -256,7 +251,17 @@ void status_callback(struct netif * state_netif)
         temp = netif_ip4_addr(state_netif);
         if (temp->addr)
         {
-            isIp = 1;
+            if (!isIp)
+            {
+                // Transition 0→1: notify the CHIP stack exactly once.
+                // status_callback can fire repeatedly (DHCP renewals, netif
+                // refresh, mDNS activity). Calling cc35xx_on_ip_acquired()
+                // every time would flood the CHIP event queue and block
+                // tcpip_thread in PostEventOrDie, deadlocking against any
+                // AppTask/CHIP-task caller waiting to post an event.
+                isIp = 1;
+                cc35xx_on_ip_acquired();
+            }
         }
         else
         {

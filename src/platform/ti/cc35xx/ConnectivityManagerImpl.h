@@ -43,7 +43,7 @@
 
 #include <network_lwip.h>
 #include <ti/drivers/net/wifi/wifi_host_driver/inc_adapt/osi_kernel.h>
-#include <ti/drivers/net/wifi/wifi_host_driver/inc_adapt/wlan_if.h>
+#include "wlan_if_cc35xx.h"
 
 namespace chip {
 namespace Inet {
@@ -83,6 +83,8 @@ class ConnectivityManagerImpl final : public ConnectivityManager,
 
 public:
     static void _OnIpAcquired(void);
+    bool _HaveIPv4InternetConnectivity(void);
+    bool _HaveIPv6InternetConnectivity(void);
 
 private:
     // ===== Members that implement the ConnectivityManager abstract interface.
@@ -116,8 +118,6 @@ private:
     System::Clock::Timeout _GetWiFiAPIdleTimeout(void);
     void _SetWiFiAPIdleTimeout(System::Clock::Timeout val);
     CHIP_ERROR _GetAndLogWifiStatsCounters(void);
-    bool _HaveIPv4InternetConnectivity(void);
-    bool _HaveIPv6InternetConnectivity(void);
     bool _HaveServiceConnectivity(void);
     // CHIP_ERROR _Init(void);
     // void _OnPlatformEvent(const ChipDeviceEvent * event);

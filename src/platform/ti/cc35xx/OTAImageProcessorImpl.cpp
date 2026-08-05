@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2026 Project CHIP Authors
  *    All rights reserved.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,31 +18,30 @@
 
 #include <app/clusters/ota-requestor/OTADownloader.h>
 #include <app/clusters/ota-requestor/OTARequestorInterface.h>
-#include <lib/support/DefaultStorageKeyAllocator.h>
 
 #include "OTAImageProcessorImpl.h"
 
-#include <ti_drivers_config.h>
+#include <algorithm>
 
-#include "inttypes.h"
-
-// clang-format off
-/* driverlib header for resetting the SoC */
-#include <ti/devices/DeviceFamily.h>
-#include DeviceFamily_constructPath(driverlib/sys_ctrl.h)
-// clang-format on
+extern "C" void cc35xxLog(const char * msg, ...);
 
 using namespace chip::DeviceLayer;
-using namespace chip::DeviceLayer::PersistedStorage;
-
-uint64_t totalBytesWrittenNvs = 0;
-
-#define MATTER_OTA_HEADER_MAGIC_NUMBER_LENGTH 4
-#define MATTER_OTA_HEADER_IMG_LENGTH_BYTES 4
-#define MATTER_OTA_HEADER_PADDING 4
-#define MATTER_OTA_HEADER_LENGTH_BYTES 4
 
 namespace chip {
+
+// PSA FWU request_type values (from psa_fwu.c)
+#define PSA_FWU_REQUEST_NO_OTA 0x0
+#define PSA_FWU_REQUEST_OTA_COMMIT 0x2
+#define PSA_FWU_REQUEST_OTA_COMMIT_AND_PROTECT 0x3
+
+// OTA flow: Download → Reboot 1 (test new image) → Accept → Reboot 2 (image permanent)
+// This macro checks if device is in Reboot 2 (post-acceptance), when NotifyUpdateApplied should be sent
+#define IS_BOOT_POST_ACCEPT(info) \
+    ((info).impl.Primary && (info).state == PSA_FWU_UPDATED && \
+     ((info).impl.request_type == PSA_FWU_REQUEST_OTA_COMMIT || \
+      (info).impl.request_type == PSA_FWU_REQUEST_OTA_COMMIT_AND_PROTECT))
+
+// ── Public interface — schedule work on the CHIP task ────────────────────────
 
 CHIP_ERROR OTAImageProcessorImpl::PrepareDownload()
 {
@@ -70,21 +69,16 @@ CHIP_ERROR OTAImageProcessorImpl::Abort()
 
 CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & block)
 {
-    if (nullptr == mNvsHandle)
-    {
-        return CHIP_ERROR_INTERNAL;
-    }
-
-    if ((nullptr == block.data()) || block.empty())
+    if ((block.data() == nullptr) || block.empty())
     {
         return CHIP_ERROR_INVALID_ARGUMENT;
     }
 
-    // Store block data for HandleProcessBlock to access
     CHIP_ERROR err = SetBlock(block);
     if (err != CHIP_NO_ERROR)
     {
         ChipLogError(SoftwareUpdate, "Cannot set block data: %" CHIP_ERROR_FORMAT, err.Format());
+        return err;
     }
 
     PlatformMgr().ScheduleWork(HandleProcessBlock, reinterpret_cast<intptr_t>(this));
@@ -93,108 +87,26 @@ CHIP_ERROR OTAImageProcessorImpl::ProcessBlock(ByteSpan & block)
 
 bool OTAImageProcessorImpl::IsFirstImageRun()
 {
-    OTARequestorInterface * requestor;
-    uint32_t runningSwVer;
+    psa_fwu_component_info_t info1, info2;
+    psa_status_t s1 = psa_fwu_query(Vendor_Image_Slot_1, &info1);
+    psa_status_t s2 = psa_fwu_query(Vendor_Image_Slot_2, &info2);
 
-    if (CHIP_NO_ERROR != ConfigurationMgr().GetSoftwareVersion(runningSwVer))
+    // Boot 1: Any slot in TRIAL state needs acceptance via psa_fwu_accept()
+    if ((s1 == PSA_SUCCESS && info1.state == PSA_FWU_TRIAL) ||
+        (s2 == PSA_SUCCESS && info2.state == PSA_FWU_TRIAL))
     {
-        return false;
+        return true;
     }
 
-    requestor = GetRequestorInstance();
-
-    return (requestor->GetCurrentUpdateState() == chip::app::Clusters::OtaSoftwareUpdateRequestor::OTAUpdateStateEnum::kApplying);
-}
-
-/* makes room for the new block if needed */
-static bool writeExtFlashImgPages(NVS_Handle handle, ssize_t offset, MutableByteSpan block)
-{
-    int_fast16_t status;
-    NVS_Attrs regionAttrs;
-    unsigned int erasedSectors;
-    unsigned int neededSectors;
-    size_t sectorSize;
-    size_t imageOffset;
-    uint8_t * data;
-    size_t dataSize;
-
-    if (offset < 0)
+    // Boot 2 only: OTA commit just completed, send NotifyUpdateApplied
+    // Boot 3+: request_type is NO_OTA, so this check fails and ConfirmCurrentImage is skipped
+    if ((s1 == PSA_SUCCESS && IS_BOOT_POST_ACCEPT(info1)) ||
+        (s2 == PSA_SUCCESS && IS_BOOT_POST_ACCEPT(info2)))
     {
-        size_t blockOffset = -offset;
-        if (blockOffset >= block.size())
-        {
-            /* We have not downloaded past the Matter OTA header */
-            return true;
-        }
-
-        imageOffset = 0;
-        data        = block.data() + blockOffset;
-        dataSize    = block.size() - blockOffset;
-    }
-    else
-    {
-        imageOffset = offset;
-        data        = block.data();
-        dataSize    = block.size();
+        return true;
     }
 
-    NVS_getAttrs(handle, &regionAttrs);
-    sectorSize    = regionAttrs.sectorSize;
-    erasedSectors = (imageOffset + (sectorSize - 1)) / sectorSize;
-    neededSectors = ((imageOffset + dataSize) + (sectorSize - 1)) / sectorSize;
-    if (neededSectors != erasedSectors)
-    {
-        status = NVS_erase(handle, (erasedSectors * sectorSize), (neededSectors - erasedSectors) * sectorSize);
-        if (status != NVS_STATUS_SUCCESS)
-        {
-            ChipLogError(SoftwareUpdate, "NVS_erase failed status: %d", status);
-            return false;
-        }
-    }
-    status = NVS_write(handle, imageOffset, data, dataSize, NVS_WRITE_POST_VERIFY);
-    if (status != NVS_STATUS_SUCCESS)
-    {
-        ChipLogError(SoftwareUpdate, "NVS_write failed status: %d", status);
-        return false;
-    }
-    else
-    {
-        totalBytesWrittenNvs += dataSize;
-        ChipLogProgress(SoftwareUpdate, "Total written bytes: %d", (size_t) totalBytesWrittenNvs);
-    }
-    return true;
-}
-
-/* Erase the MCUBoot slot */
-#define BOOT_SLOT_SIZE (0x000F2000) /* must match flash_map_backend */
-static bool eraseExtSlot(NVS_Handle handle)
-{
-    int_fast16_t status;
-    NVS_Attrs regionAttrs;
-    unsigned int sectors;
-
-    NVS_getAttrs(handle, &regionAttrs);
-    /* calculate the number of sectors to erase */
-    sectors = (BOOT_SLOT_SIZE + (regionAttrs.sectorSize - 1)) / regionAttrs.sectorSize;
-    status  = NVS_erase(handle, 0U, sectors * regionAttrs.sectorSize);
-
-    return (status == NVS_STATUS_SUCCESS);
-}
-
-/* Erase the MCUBoot header to ensure the image isn't applied */
-#define BOOT_HEADER_SIZE (0x80)
-static bool eraseExtHeader(NVS_Handle handle)
-{
-    int_fast16_t status;
-    NVS_Attrs regionAttrs;
-    unsigned int sectors;
-
-    NVS_getAttrs(handle, &regionAttrs);
-    /* calculate the number of sectors to erase */
-    sectors = (BOOT_HEADER_SIZE + (regionAttrs.sectorSize - 1)) / regionAttrs.sectorSize;
-    status  = NVS_erase(handle, 0U, sectors * regionAttrs.sectorSize);
-
-    return (status == NVS_STATUS_SUCCESS);
+    return false;
 }
 
 CHIP_ERROR OTAImageProcessorImpl::ConfirmCurrentImage()
@@ -208,15 +120,126 @@ CHIP_ERROR OTAImageProcessorImpl::ConfirmCurrentImage()
     uint32_t currentVersion;
     uint32_t targetVersion = requestor->GetTargetVersion();
     ReturnErrorOnFailure(DeviceLayer::ConfigurationMgr().GetSoftwareVersion(currentVersion));
+
     if (currentVersion != targetVersion)
     {
-        ChipLogError(SoftwareUpdate, "Current software version = %" PRIu32 ", expected software version = %" PRIu32, currentVersion,
-                     targetVersion);
+        ChipLogError(SoftwareUpdate, "Version mismatch: running %" PRIu32 ", expected %" PRIu32, currentVersion, targetVersion);
+        // Roll back — bootloader will revert to the previous image on next boot
+        psa_fwu_reject(PSA_ERROR_INVALID_ARGUMENT);
+        psa_fwu_request_reboot();
         return CHIP_ERROR_INCORRECT_STATE;
+    }
+
+    // Query both slots to find OTA state
+    psa_fwu_component_info_t info1, info2;
+    psa_status_t s1 = psa_fwu_query(Vendor_Image_Slot_1, &info1);
+    psa_status_t s2 = psa_fwu_query(Vendor_Image_Slot_2, &info2);
+
+    // Boot 1: Check if ANY slot is in TRIAL state (psa_fwu_accept handles all TRIAL slots)
+    if ((s1 == PSA_SUCCESS && info1.state == PSA_FWU_TRIAL) ||
+        (s2 == PSA_SUCCESS && info2.state == PSA_FWU_TRIAL))
+    {
+        // Image running in TRIAL (ACTIVE+NOT_PRIMARY), accept and request commit reboot
+        psa_status_t status = psa_fwu_accept();
+        if (status != PSA_SUCCESS && status != PSA_SUCCESS_REBOOT)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_accept failed: %" PRId32, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        ChipLogProgress(SoftwareUpdate, "OTA commit OK, requesting Reboot 2 (commit boot)");
+        psa_fwu_request_reboot();
+    }
+    // Boot 2: No TRIAL slot, check if OTA commit just completed
+    else if ((s1 == PSA_SUCCESS && IS_BOOT_POST_ACCEPT(info1)) ||
+             (s2 == PSA_SUCCESS && IS_BOOT_POST_ACCEPT(info2)))
+    {
+        // Image committed (UPDATED+PRIMARY), NotifyUpdateApplied will execute after this
+        ChipLogProgress(SoftwareUpdate, "OTA image already confirmed (UPDATED state), ready to send NotifyUpdateApplied");
+    }
+    else
+    {
+        ChipLogError(SoftwareUpdate, "No slot in TRIAL or post-accept boot state");
+        return CHIP_ERROR_INTERNAL;
     }
 
     return CHIP_NO_ERROR;
 }
+
+// ── Slot preparation (ported from Simplelink Wi-Fi SDK ota_fwu.c::OTA_FWU_prepareSlot) ────────
+
+static CHIP_ERROR PrepareSlot(psa_fwu_component_t slot)
+{
+    psa_fwu_component_info_t info;
+    psa_status_t status;
+
+    status = psa_fwu_query(slot, &info);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(SoftwareUpdate, "psa_fwu_query(%d) failed: %" PRId32, (int) slot, (int32_t) status);
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    ChipLogProgress(SoftwareUpdate, "Staging slot %d state=%d primary=%d version=%d.%d.%d", (int) slot, (int) info.state,
+                    (int) info.impl.Primary, (int) info.version.major, (int) info.version.minor, (int) info.version.patch);
+
+    switch (info.state)
+    {
+    case PSA_FWU_READY:
+        break;
+
+    case PSA_FWU_WRITING:
+    case PSA_FWU_CANDIDATE:
+        status = psa_fwu_cancel(slot);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_cancel(%d) failed: %" PRId32, (int) slot, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        status = psa_fwu_clean(slot);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_clean(%d) failed: %" PRId32, (int) slot, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        break;
+
+    case PSA_FWU_STAGED:
+    case PSA_FWU_TRIAL:
+        // psa_fwu_reject acts on all STAGED/TRIAL components — safe in Phase 1 (single component)
+        status = psa_fwu_reject(PSA_ERROR_NOT_PERMITTED);
+        if (status != PSA_SUCCESS && status != PSA_SUCCESS_REBOOT)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_reject failed: %" PRId32, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        status = psa_fwu_clean(slot);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_clean(%d) failed: %" PRId32, (int) slot, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        break;
+
+    case PSA_FWU_FAILED:
+    case PSA_FWU_UPDATED:
+    case PSA_FWU_REJECTED:
+        status = psa_fwu_clean(slot);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_clean(%d) failed: %" PRId32, (int) slot, (int32_t) status);
+            return CHIP_ERROR_INTERNAL;
+        }
+        break;
+
+    default:
+        ChipLogError(SoftwareUpdate, "Slot %d in unexpected state %d", (int) slot, (int) info.state);
+        return CHIP_ERROR_INTERNAL;
+    }
+
+    return CHIP_NO_ERROR;
+}
+
+// ── Handlers (run on CHIP task) ───────────────────────────────────────────────
 
 void OTAImageProcessorImpl::HandlePrepareDownload(intptr_t context)
 {
@@ -226,82 +249,59 @@ void OTAImageProcessorImpl::HandlePrepareDownload(intptr_t context)
         ChipLogError(SoftwareUpdate, "ImageProcessor context is null");
         return;
     }
-    else if (imageProcessor->mDownloader == nullptr)
+    if (imageProcessor->mDownloader == nullptr)
     {
         ChipLogError(SoftwareUpdate, "mDownloader is null");
         return;
     }
 
-    if (NULL == imageProcessor->mNvsHandle)
-    {
-        NVS_Params nvsParams;
-        NVS_Params_init(&nvsParams);
-        imageProcessor->mNvsHandle = NVS_open(CONFIG_NVSEXTERNAL, &nvsParams);
+    // Select the non-primary (staging) slot
+    psa_fwu_component_info_t info1, info2;
+    psa_status_t s1 = psa_fwu_query(Vendor_Image_Slot_1, &info1);
+    psa_status_t s2 = psa_fwu_query(Vendor_Image_Slot_2, &info2);
 
-        if (NULL == imageProcessor->mNvsHandle)
-        {
-            imageProcessor->mDownloader->OnPreparedForDownload(CHIP_ERROR_OPEN_FAILED);
-            return;
-        }
+    if (s1 != PSA_SUCCESS || s2 != PSA_SUCCESS)
+    {
+        ChipLogError(SoftwareUpdate, "Failed to query Vendor Image slots");
+        imageProcessor->mDownloader->OnPreparedForDownload(CHIP_ERROR_INTERNAL);
+        return;
     }
 
-    if (!eraseExtSlot(imageProcessor->mNvsHandle))
+    if (!info1.impl.Primary && info2.impl.Primary)
     {
-        imageProcessor->mDownloader->OnPreparedForDownload(CHIP_ERROR_WRITE_FAILED);
+        imageProcessor->mStagingSlot = Vendor_Image_Slot_1;
+    }
+    else if (info1.impl.Primary && !info2.impl.Primary)
+    {
+        imageProcessor->mStagingSlot = Vendor_Image_Slot_2;
+    }
+    else
+    {
+        ChipLogError(SoftwareUpdate, "Cannot determine staging slot (primary flags: %d %d)", (int) info1.impl.Primary,
+                     (int) info2.impl.Primary);
+        imageProcessor->mDownloader->OnPreparedForDownload(CHIP_ERROR_INTERNAL);
+        return;
     }
 
-    imageProcessor->mFixedOtaHeader = { 0 };
+    ChipLogProgress(SoftwareUpdate, "OTA staging slot: %d", (int) imageProcessor->mStagingSlot);
+
+    CHIP_ERROR err = PrepareSlot(imageProcessor->mStagingSlot);
+    if (err != CHIP_NO_ERROR)
+    {
+        imageProcessor->mDownloader->OnPreparedForDownload(err);
+        return;
+    }
+
+    // Reset per-session state
+    imageProcessor->mManifestBytesReceived = 0;
+    imageProcessor->mManifestBuffer        = {};
+    imageProcessor->mFwuStartCalled        = false;
+    imageProcessor->mImageOffset           = TI_FWU_MANIFEST_SIZE;
+    imageProcessor->mLastProcessedImageOffset = 0;
+    imageProcessor->mParams.downloadedBytes = 0;
+    imageProcessor->mHeaderParser.Init();
+
     imageProcessor->mDownloader->OnPreparedForDownload(CHIP_NO_ERROR);
-}
-
-void OTAImageProcessorImpl::HandleFinalize(intptr_t context)
-{
-    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
-
-    if (imageProcessor == nullptr)
-    {
-        return;
-    }
-
-    /* possible improvement, add MCUBoot magic at the end of the slot. This
-     * could be done if the ota file generation truncates the image instead of
-     * sending the full MCUBoot slot.
-     */
-
-    imageProcessor->ReleaseBlock();
-
-    ChipLogProgress(SoftwareUpdate, "OTA image downloaded");
-    ChipLogProgress(SoftwareUpdate, "Total downloaded bytes: %d", (size_t) imageProcessor->mParams.downloadedBytes);
-}
-
-void OTAImageProcessorImpl::HandleApply(intptr_t context)
-{
-    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
-    if (imageProcessor == nullptr)
-    {
-        return;
-    }
-
-    /* reset SoC to kick MCUBoot */
-    ChipLogProgress(SoftwareUpdate, "Resetting device to kick off MCUBoot");
-    SysCtrlSystemReset();
-}
-
-void OTAImageProcessorImpl::HandleAbort(intptr_t context)
-{
-    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
-    if (imageProcessor == nullptr)
-    {
-        return;
-    }
-
-    if (!eraseExtHeader(imageProcessor->mNvsHandle))
-    {
-        imageProcessor->mDownloader->OnPreparedForDownload(CHIP_ERROR_WRITE_FAILED);
-    }
-
-    NVS_close(imageProcessor->mNvsHandle);
-    imageProcessor->ReleaseBlock();
 }
 
 void OTAImageProcessorImpl::HandleProcessBlock(intptr_t context)
@@ -312,57 +312,185 @@ void OTAImageProcessorImpl::HandleProcessBlock(intptr_t context)
         ChipLogError(SoftwareUpdate, "ImageProcessor context is null");
         return;
     }
-    else if (imageProcessor->mDownloader == nullptr)
+    if (imageProcessor->mDownloader == nullptr)
     {
         ChipLogError(SoftwareUpdate, "mDownloader is null");
         return;
     }
 
-    /* Save the fixed size header */
-    if (imageProcessor->mParams.downloadedBytes < sizeof(imageProcessor->mFixedOtaHeader))
-    {
-        uint8_t * header = reinterpret_cast<uint8_t *>(&(imageProcessor->mFixedOtaHeader));
-        if (imageProcessor->mBlock.size() + imageProcessor->mParams.downloadedBytes < sizeof(imageProcessor->mFixedOtaHeader))
-        {
-            // the first block is smaller than the header, somehow
-            memcpy(header + imageProcessor->mParams.downloadedBytes, imageProcessor->mBlock.data(), imageProcessor->mBlock.size());
-        }
-        else
-        {
-            // we have received the whole header, fill it up
-            memcpy(header + imageProcessor->mParams.downloadedBytes, imageProcessor->mBlock.data(),
-                   sizeof(imageProcessor->mFixedOtaHeader) - imageProcessor->mParams.downloadedBytes);
+    ByteSpan block(imageProcessor->mBlock.data(), imageProcessor->mBlock.size());
 
-            // update the total size for download tracking
-            imageProcessor->mParams.totalFileBytes = imageProcessor->mFixedOtaHeader.totalSize;
-            ChipLogDetail(SoftwareUpdate, "Total file size: %d", (size_t) imageProcessor->mParams.totalFileBytes);
+    // ── Step 1: consume Matter OTA header ────────────────────────────────────
+    if (imageProcessor->mHeaderParser.IsInitialized())
+    {
+        OTAImageHeader header;
+        CHIP_ERROR err = imageProcessor->mHeaderParser.AccumulateAndDecode(block, header);
+
+        if (err == CHIP_ERROR_BUFFER_TOO_SMALL)
+        {
+            // Header not yet complete — entire block was consumed by the parser
+            imageProcessor->mParams.downloadedBytes += imageProcessor->mBlock.size();
+            imageProcessor->mDownloader->FetchNextData();
+            return;
+        }
+        if (err != CHIP_NO_ERROR)
+        {
+            ChipLogError(SoftwareUpdate, "OTA header parse error: %" CHIP_ERROR_FORMAT, err.Format());
+            imageProcessor->mDownloader->EndDownload(err);
+            return;
+        }
+
+        // Header fully parsed — remaining bytes in block are payload
+        imageProcessor->mParams.totalFileBytes = header.mPayloadSize;
+        imageProcessor->mHeaderParser.Clear();
+    }
+
+    // ── Step 2: buffer PSA FWU manifest (first TI_FWU_MANIFEST_SIZE payload bytes) ──
+    const uint8_t * payloadData = block.data();
+    size_t          payloadSize = block.size();
+
+    if (imageProcessor->mManifestBytesReceived < TI_FWU_MANIFEST_SIZE)
+    {
+        size_t needed = TI_FWU_MANIFEST_SIZE - imageProcessor->mManifestBytesReceived;
+        size_t toCopy = std::min(payloadSize, needed);
+
+        memcpy(reinterpret_cast<uint8_t *>(&imageProcessor->mManifestBuffer) + imageProcessor->mManifestBytesReceived,
+               payloadData, toCopy);
+
+        imageProcessor->mManifestBytesReceived += toCopy;
+        payloadData += toCopy;
+        payloadSize -= toCopy;
+    }
+
+    // ── Step 3: call psa_fwu_start once manifest is complete ─────────────────
+    if (imageProcessor->mManifestBytesReceived == TI_FWU_MANIFEST_SIZE && !imageProcessor->mFwuStartCalled)
+    {
+        psa_status_t status =
+            psa_fwu_start(imageProcessor->mStagingSlot, &imageProcessor->mManifestBuffer, TI_FWU_MANIFEST_SIZE);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_start failed: %" PRId32, (int32_t) status);
+            imageProcessor->mDownloader->EndDownload(CHIP_ERROR_WRITE_FAILED);
+            return;
+        }
+        imageProcessor->mFwuStartCalled = true;
+        ChipLogProgress(SoftwareUpdate, "psa_fwu_start OK, image data offset starts at %u",
+                        (unsigned) imageProcessor->mImageOffset);
+    }
+
+    // ── Step 4: stream image data via psa_fwu_write ───────────────────────────
+    if (payloadSize > 0 && imageProcessor->mFwuStartCalled)
+    {
+        psa_status_t status =
+            psa_fwu_write(imageProcessor->mStagingSlot, imageProcessor->mImageOffset, payloadData, payloadSize);
+        if (status != PSA_SUCCESS)
+        {
+            ChipLogError(SoftwareUpdate, "psa_fwu_write failed at offset %u: %" PRId32,
+                         (unsigned) imageProcessor->mImageOffset, (int32_t) status);
+            imageProcessor->mDownloader->EndDownload(CHIP_ERROR_WRITE_FAILED);
+            return;
+        }
+        imageProcessor->mImageOffset += payloadSize;
+    }
+
+    // Only count bytes if we advanced past what we've already processed
+    // This prevents counting the same bytes twice if a BDX retransmission occurs
+    if (imageProcessor->mImageOffset > imageProcessor->mLastProcessedImageOffset)
+    {
+        uint32_t newBytes = imageProcessor->mImageOffset - imageProcessor->mLastProcessedImageOffset;
+        imageProcessor->mParams.downloadedBytes += newBytes;
+        imageProcessor->mLastProcessedImageOffset = imageProcessor->mImageOffset;
+    }
+
+    cc35xxLog("Downloaded %lu / %lu bytes", (unsigned long) imageProcessor->mParams.downloadedBytes,
+             (unsigned long) imageProcessor->mParams.totalFileBytes);
+    imageProcessor->mDownloader->FetchNextData();
+}
+
+void OTAImageProcessorImpl::HandleFinalize(intptr_t context)
+{
+    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
+    if (imageProcessor == nullptr)
+    {
+        return;
+    }
+
+    psa_status_t status = psa_fwu_finish(imageProcessor->mStagingSlot);
+    if (status != PSA_SUCCESS)
+    {
+        ChipLogError(SoftwareUpdate, "psa_fwu_finish failed: %" PRId32, (int32_t) status);
+    }
+
+    imageProcessor->ReleaseBlock();
+    cc35xxLog("OTA image download complete (%lu bytes)", (unsigned long) imageProcessor->mParams.downloadedBytes);
+}
+
+void OTAImageProcessorImpl::HandleApply(intptr_t context)
+{
+    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
+    if (imageProcessor == nullptr)
+    {
+        return;
+    }
+
+    // Install all CANDIDATE components — in Phase 1 this is only the Vendor Image
+    psa_status_t status = psa_fwu_install();
+    if (status != PSA_SUCCESS && status != PSA_SUCCESS_REBOOT)
+    {
+        ChipLogError(SoftwareUpdate, "psa_fwu_install failed: %" PRId32, (int32_t) status);
+        return;
+    }
+
+    ChipLogProgress(SoftwareUpdate, "OTA install OK, requesting Reboot 1 (trial boot)");
+    psa_fwu_request_reboot();
+}
+
+void OTAImageProcessorImpl::HandleAbort(intptr_t context)
+{
+    auto * imageProcessor = reinterpret_cast<OTAImageProcessorImpl *>(context);
+    if (imageProcessor == nullptr)
+    {
+        return;
+    }
+
+    psa_fwu_component_info_t info;
+    psa_fwu_component_t slot = imageProcessor->mStagingSlot;
+    psa_status_t status;
+
+    if (psa_fwu_query(slot, &info) == PSA_SUCCESS)
+    {
+        switch (info.state)
+        {
+        case PSA_FWU_WRITING:
+        case PSA_FWU_CANDIDATE:
+            psa_fwu_cancel(slot);
+            psa_fwu_clean(slot);
+            break;
+
+        case PSA_FWU_STAGED:
+            status = psa_fwu_reject(PSA_ERROR_SERVICE_FAILURE);
+            if (status == PSA_SUCCESS || status == PSA_SUCCESS_REBOOT)
+            {
+                psa_fwu_clean(slot);
+            }
+            break;
+
+        case PSA_FWU_FAILED:
+        case PSA_FWU_UPDATED:
+        case PSA_FWU_REJECTED:
+            psa_fwu_clean(slot);
+            break;
+
+        default:
+            break;
         }
     }
 
-    if (imageProcessor->mParams.downloadedBytes + imageProcessor->mBlock.size() > imageProcessor->mFixedOtaHeader.headerSize)
-        /* chip::OTAImageHeaderParser can be used for processing the variable size header */
-
-        /* Do not write Matter OTA image header to the external flash, MCUBoot
-         * needs to have it's header at address 0
-         */
-        if (imageProcessor->mFixedOtaHeader.headerSize > 0)
-        {
-            ssize_t offset = imageProcessor->mParams.downloadedBytes -
-                (imageProcessor->mFixedOtaHeader.headerSize + MATTER_OTA_HEADER_MAGIC_NUMBER_LENGTH +
-                 MATTER_OTA_HEADER_IMG_LENGTH_BYTES + MATTER_OTA_HEADER_PADDING + MATTER_OTA_HEADER_LENGTH_BYTES);
-            ChipLogDetail(SoftwareUpdate, "Write block %d, %d", (size_t) imageProcessor->mParams.downloadedBytes,
-                          imageProcessor->mBlock.size());
-            if (!writeExtFlashImgPages(imageProcessor->mNvsHandle, offset, imageProcessor->mBlock))
-            {
-                imageProcessor->mDownloader->EndDownload(CHIP_ERROR_WRITE_FAILED);
-                return;
-            }
-        }
-
-    imageProcessor->mParams.downloadedBytes += imageProcessor->mBlock.size();
-    ChipLogDetail(SoftwareUpdate, "Total downloaded bytes: %d", (size_t) imageProcessor->mParams.downloadedBytes);
-    imageProcessor->mDownloader->FetchNextData();
+    imageProcessor->ReleaseBlock();
+    ChipLogProgress(SoftwareUpdate, "OTA aborted, staging slot %d cleaned up", (int) slot);
 }
+
+// ── Block buffer helpers ──────────────────────────────────────────────────────
 
 CHIP_ERROR OTAImageProcessorImpl::SetBlock(ByteSpan & block)
 {
@@ -377,12 +505,12 @@ CHIP_ERROR OTAImageProcessorImpl::SetBlock(ByteSpan & block)
         {
             ReleaseBlock();
         }
-        uint8_t * mBlock_ptr = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(block.size()));
-        if (mBlock_ptr == nullptr)
+        uint8_t * buf = static_cast<uint8_t *>(chip::Platform::MemoryAlloc(block.size()));
+        if (buf == nullptr)
         {
             return CHIP_ERROR_NO_MEMORY;
         }
-        mBlock = MutableByteSpan(mBlock_ptr, block.size());
+        mBlock = MutableByteSpan(buf, block.size());
     }
     CHIP_ERROR err = CopySpanToMutableSpan(block, mBlock);
     if (err != CHIP_NO_ERROR)
@@ -399,7 +527,6 @@ CHIP_ERROR OTAImageProcessorImpl::ReleaseBlock()
     {
         chip::Platform::MemoryFree(mBlock.data());
     }
-
     mBlock = MutableByteSpan();
     return CHIP_NO_ERROR;
 }

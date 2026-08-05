@@ -3,25 +3,7 @@
 An example application showing the use of [Matter][matter] on the Texas
 Instruments CC35XX family of Wireless MCUs.
 
-This is an early, experimental release of Matter on the TI CC35xx platform. 
-
-Features enabled in this release:
-- Matter Lighting Application
-- Ability to connect to AP (hardcoded credentials only)
-    - Connectivity with AP is assumed to be stable
-- Work based on Matter v1.5 specification
-
-Features not currently enabled in this release:
-- Support for unstable AP connections
-- Persistent storage
-- Over the Air (OTA) Update Support
-- Intermittently Connected Devices (ICD) Support
-- BLE based commissioning onto a Wi-Fi network
-
-Limited testing has been performed. Matter Commissioning (onnetwork) and
-the On/Off commands in the On/Off Cluster have been tested. Test coverage will
-be improved for future releases.
----
+## Outline
 
 -   [Matter Lighting Example Application](#matter-lighting-example-application)
     -   [Introduction](#introduction)
@@ -34,6 +16,7 @@ be improved for future releases.
         -   [Wi-Fi Toolbox](#wi-fi-toolbox)
     -   [Viewing Logging Output](#viewing-logging-output)
     -   [Running the Example](#running-the-example)
+    -   [Over-The-Air (OTA) Updates](#over-the-air-ota-updates)
     -   [TI Support](#ti-support)
 
 ---
@@ -65,30 +48,25 @@ the Texas Instruments devices.
 
 **Hardware:**
 - LP-EM-CC35X1 Rev A LaunchPad
+- XDS110 Programmer/Debugger
 
 **Software:**
-- SimpleLink Wi-Fi SDK `10.10.00.18`
+- SimpleLink Wi-Fi SDK `10.10.01.08`
 - SysConfig `1.26.3`
-- SimpleLink Wi-Fi Toolbox `4.1.16`
-
-> **Note:** SysConfig and SimpleLink Wi-Fi Toolbox are installed by the SimpleLink Wi-Fi SDK installer and do not need to be installed separately.
+- SimpleLink Wi-Fi Toolbox `4.2.4`
 
 ## Building
 
 ### Preparation
 
-Some initial setup is necessary for preparing the build environment. This
-section will need to be done when migrating to new versions of the SDK. This
-guide assumes that the environment is linux based, and recommends Ubuntu 22.04.
+Before building the lighting example, complete the one-time environment setup in the
+[CC35XX Matter Getting Started Guide][getting-started]. This covers installing build
+dependencies, cloning the repository, checking out submodules, and bootstrapping the
+build environment.
 
-> **Note:** Before building, complete the environment setup steps in the
-> [CC35XX Matter Getting Started Guide][getting-started], including cloning the
-> repository, bootstrapping, and copying the SDK into the Matter tree.
-
--   Download and install the [SimpleLink Wi-Fi SDK][simplelink-wifi-sdk] (`10.10.00.18`).
-    SysConfig and the SimpleLink Wi-Fi Toolbox are included in the SDK installer.
-
-    > **Note:** This example has been validated with SimpleLink Wi-Fi SDK `10.10.00.18`.
+When updating to a new TI Matter release, rerun the submodule checkout step as the SDK
+submodule may be updated. This guide assumes a Linux-based environment and recommends
+Ubuntu 22.04.
 
 ### Compilation
 
@@ -103,25 +81,24 @@ Ninja to build the executable.
 
     ```
 
--   Run the build to produce a default executable. By default on Linux both the
-    TI SimpleLink SDK and Sysconfig are located in a `ti` folder in the user's
-    home directory, and you must provide the absolute path to them. For example
+-   Run the build to produce the lighting application binary. By default on Linux,
+    SysConfig and SimpleLink Wi-Fi Toolbox are located in a `ti` folder in the user's
+    home directory. You must provide the absolute path to these tools. For example
     `/home/username/ti/sysconfig_1.26.3`. On Windows the default directory is
-    `C:\ti`. Take note of this install path, as it will be used in the next
-    step.
+    `C:\ti`.
 
     ```
     $ cd {matter-root}/examples/lighting-app/ti/cc35xx
-    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.3\" ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_1_16\" ti_simplelink_wifi_sdk_root=\"$HOME/ti/simplelink_wifi_sdk_10_10_00_18\""
+    $ gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.3\" ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_2_4\""
     $ ninja -C out/debug
 
     ```
 
-    If you would like to define arguments on the command line you may add them
-    to the GN call.
+    Optional: Add build arguments to customize the build. Common arguments include
+    version overrides for OTA updates or additional features:
 
     ```
-    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.3\" target_defines=[\"TI_ATTESTATION_CREDENTIALS=1\"] chip_generate_link_map_file=true ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_1_16\" ti_simplelink_wifi_sdk_root=\"$HOME/ti/simplelink_wifi_sdk_10_10_00_18\""
+    gn gen out/debug --args="ti_sysconfig_root=\"$HOME/ti/sysconfig_1.26.3\" ti_simplelink_wifi_toolbox_root=\"$HOME/ti/simplelink_wifi_toolbox_lin_4_2_4\" matter_software_ver=\"0x00020000\" matter_software_ver_str=\"0.2.0\" target_defines=[\"TI_ATTESTATION_CREDENTIALS=1\"]"
     ```
     **Note:** build_cc35xx_lighting_app.sh script can be used for building this example. Modify the paths for syscfg and others in the script if the default is not valid for your setup.
 
@@ -187,18 +164,6 @@ terminal emulator to that port to see the output with the following options:
 
 ## Running the Example
 
-### Provisioning
-
-The first step to bring the Matter device onto the network is to provision it.
-
-The SSID, Password, and WPA Security Type of the AP are listed as defines `AP_SSID`, `AP_PASSWORD`, and `WLAN_SEC_TYPE` at the top of `src/platform/ti/cc35xx/ConnectivityManagerImpl.cpp`. Please put in your AP credentials here. Upon device reset, the launchpad will attempt to connect to the AP specified. 
-
-Once the device is connected to the local AP, commissioning can be triggered using "OnNetwork" configuration.
-
-#### Bluetooth LE Provisioning
-
-BLE provisioning is not supported currently.
-
 ### Commissioning
 
 Once a device has been flashed with this example, it can now join and operate in
@@ -218,12 +183,13 @@ Fabric Formation][matter-fabric-formation] Guide.
 
 **Step 1**
 
-Commission the light device onto the Matter network. Run the following command
+Commission the light device onto the Matter network over BLE. Run the following command
 on the CHIP tool:
 
 ```
 
-./chip-tool pairing onnetwork <nodeID - e.g. 1> 20202021
+./chip-tool pairing ble-wifi <nodeID> <wifi_ssid> <wifi_pwd> 20202021 3840
+Example: ./chip-tool pairing ble-wifi 1 test_ssid test_pwd 20202021 3840
 
 ```
 **Note:** nodeID parameter can be set to a desired value and the same value should be used in subsequent commands
@@ -275,14 +241,21 @@ Identify
 
 ```
 
+## Over-The-Air (OTA) Updates
+
+For instructions on performing OTA firmware updates on the CC35XX lighting device, see the [CC35XX OTA Update Guide][ota-guide].
+
 ## TI Support
 
 For technical support, please consider creating a post on TI's [E2E forum][e2e].
 Additionally, we welcome any feedback.
 
-[matter]: https://csa-iot.org/all-solutions/matter/
-[simplelink-wifi-sdk]: https://www.ti.com/tool/download/SIMPLELINK-WIFI-SDK/9.22.00.15
-[ccs]: https://www.ti.com/tool/CCSTUDIO
+[matter]: 
+    https://csa-iot.org/all-solutions/matter/
+[simplelink-wifi-sdk]: 
+    https://www.ti.com/tool/download/SIMPLELINK-WIFI-SDK/9.22.00.15
+[ccs]: 
+    https://www.ti.com/tool/CCSTUDIO
 [ccs_after_launch]:
     https://software-dl.ti.com/ccs/esd/documents/users_guide/ccs_debug-main.html?configuration#after-launch
 [ccs_debug_view]:
@@ -299,3 +272,5 @@ Additionally, we welcome any feedback.
     https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AaOmgef6GwJcKObNX9npTQ__com.ti.SIMPLELINK_ACADEMY_CC13XX_CC26XX_SDK__AfkT0vQ__LATEST   
 [programmer_user_guide]:
     https://software-dl.ti.com/simplelink/esd/simplelink_wifi_sdk/10.10.00.18/exports/docs/WiFi-toolbox/html/WiFi-toolbox/programmer_user_guide.html
+[ota-guide]: 
+    ../../../../docs/platforms/ti/cc35xx_matter_v1.5_ota_update_guide.md

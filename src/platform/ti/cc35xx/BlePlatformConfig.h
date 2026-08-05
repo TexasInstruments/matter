@@ -18,10 +18,16 @@
 /**
  *    @file
  *          Platform-specific configuration overrides for the CHIP BLE
- *          Layer for the Texas Instruments CC13XX_26XX platform.
+ *          Layer for the Texas Instruments CC35XX platform.
  *
- * NOTE: Empty because BLE is not enabled, but build defines this file
- *       to be included by the build configuration.
+ * Platform-specific BLE configuration for CC35XX (NimBLE backend).
  */
 
 #pragma once
+
+// Maximum number of concurrent BLE connections (commissioning = 1)
+#define BLE_LAYER_NUM_BLE_ENDPOINTS 1
+
+// NimBLE uses uint16_t connection handles, not void*
+#define BLE_CONNECTION_OBJECT uint16_t
+#define BLE_CONNECTION_UNINITIALIZED UINT16_MAX

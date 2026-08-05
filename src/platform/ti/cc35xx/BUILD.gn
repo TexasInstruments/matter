@@ -18,6 +18,37 @@ import("${chip_root}/src/platform/device.gni")
 
 assert(chip_device_platform == "cc35xx")
 
+_nimble_root = "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/third_party/nimble"
+_fwu_root = "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/utils/FWU"
+
+config("cc35xx_fwu_includes_config") {
+  include_dirs = [
+    "${_fwu_root}",
+    "${_fwu_root}/headers",
+  ]
+}
+
+config("cc35xx_ble_includes_config") {
+  include_dirs = [
+    # NimBLE host API headers
+    "${_nimble_root}/nimble-src/nimble/host/include",
+    "${_nimble_root}/nimble-src/nimble/host/services/gap/include",
+    "${_nimble_root}/nimble-src/nimble/host/services/gatt/include",
+    "${_nimble_root}/nimble-src/nimble/host/util/include",
+    "${_nimble_root}/nimble-src/nimble/include",
+    "${_nimble_root}/nimble-src/nimble/transport/include",
+
+    # TI NimBLE config MUST precede porting/nimble so the TI syscfg.h (BLE_EXT_ADV=1) wins
+    "${_nimble_root}/ti_config/nimble-port/include",
+    "${_nimble_root}/ti_config/nimble-port/porting/npl/osi/include",
+    "${_nimble_root}/nimble-src/porting/nimble/include",
+
+    # BLE interface headers (ble_if.h, ble_transport.h)
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/ble_interface/inc_common",
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/ble_interface/inc_adapt",
+  ]
+}
+
 static_library("cc35xx") {
   sources = [
     "../../FreeRTOS/SystemTimeSupport.cpp",
@@ -35,6 +66,7 @@ static_library("cc35xx") {
     "KeyValueStoreManagerImpl.cpp",
     "NetworkCommissioningWiFiDriver.cpp",
     "NetworkCommissioningWiFiDriver.h",
+    "wlan_if_cc35xx.h",
     "PlatformManagerImpl.cpp",
     "CHIPDevicePlatformConfig.h",
     "CHIPDevicePlatformEvent.h",
@@ -47,17 +79,43 @@ static_library("cc35xx") {
     "network_lwip.c",
     "network_mbedtls.c",
   ]
-    include_dirs = [
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_adapt",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_common",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_platform/cc35xx/inc_common",
-      "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/wifi_stack/inc_common",
-      ]
 
+  if (chip_config_network_layer_ble) {
+    sources += [
+      "BLEManagerImpl.cpp",
+      "BLEManagerImpl.h",
+    ]
+  }
 
-  deps = [ 
+  include_dirs = [
+    # WiFi headers
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_adapt",
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_host_driver/inc_common",
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/drivers/net/wifi/wifi_platform/cc35xx/inc_common",
+    "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx/source/ti/net/wifi_stack/inc_common",
+  ]
+
+  public_configs = []
+  libs = []
+
+  if (chip_config_network_layer_ble) {
+    public_configs += [ ":cc35xx_ble_includes_config" ]
+    libs += [ "${_nimble_root}/lib/gcc/nimble.a" ]
+  }
+
+  if (chip_enable_ota_requestor) {
+    sources += [
+      "OTAImageProcessorImpl.cpp",
+      "OTAImageProcessorImpl.h",
+    ]
+
+    public_configs += [ ":cc35xx_fwu_includes_config" ]
+    libs += [ "${_fwu_root}/lib/gcc/FWU.a" ]
+  }
+
+  deps = [
     "${chip_root}/src/platform/logging:headers",
-   ]
+  ]
 
   public = [
     "${chip_root}/src/credentials/CHIPCert.h",

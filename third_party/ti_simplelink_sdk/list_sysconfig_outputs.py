@@ -50,6 +50,14 @@ def main():
     # Build command: cli + caller-provided args + --listGeneratedFiles
     cmd = [cli] + sys.argv[2:] + ['--listGeneratedFiles']
 
+    # Create the -o output directory if it doesn't exist yet (exec_script runs
+    # at GN generation time before ninja creates the output tree).
+    args = sys.argv[2:]
+    for i, arg in enumerate(args):
+        if arg == '-o' and i + 1 < len(args):
+            os.makedirs(args[i + 1], exist_ok=True)
+            break
+
     try:
         result = subprocess.run(
             cmd,

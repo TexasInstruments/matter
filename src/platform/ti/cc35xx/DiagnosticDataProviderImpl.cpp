@@ -32,7 +32,7 @@
 
 #include <lwip/netif.h>
 #include <network_lwip.h>
-#include <ti/drivers/net/wifi/wifi_host_driver/inc_adapt/wlan_if.h>
+#include "wlan_if_cc35xx.h"
 #include <platform/ti/cc35xx/ti_wifi_structs.h>
 
 namespace chip {
@@ -165,17 +165,17 @@ void DiagnosticDataProviderImpl::ReleaseNetworkInterfaces(NetworkInterface * net
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetActiveHardwareFaults(GeneralFaults<kMaxHardwareFaults> & hardwareFaults)
 {
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetActiveRadioFaults(GeneralFaults<kMaxRadioFaults> & radioFaults)
 {
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetActiveNetworkFaults(GeneralFaults<kMaxNetworkFaults> & networkFaults)
 {
-    return CHIP_NO_ERROR;
+    return CHIP_ERROR_UNSUPPORTED_CHIP_FEATURE;
 }
 
 DiagnosticDataProvider & GetDiagnosticDataProviderImpl()

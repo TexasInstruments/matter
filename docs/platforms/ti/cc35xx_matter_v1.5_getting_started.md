@@ -1,19 +1,22 @@
-# CC35XX Matter Getting Started Guide
+# CC35XX Matter v1.5 Getting Started Guide
 
 ## Prerequisites
 
 **Hardware:**
 - LP-EM-CC35X1 Rev A LaunchPad
+- XDS110 Programmer/Debugger
 
 **Software:**
 - Ubuntu 22.04 (host machine)
-- SimpleLink Wi-Fi SDK `10.10.00.18`
+- SimpleLink Wi-Fi SDK `10.10.01.08`
 - SysConfig `1.26.3`
-- SimpleLink Wi-Fi Toolbox `4.1.16`
+- SimpleLink Wi-Fi Toolbox `4.2.4`
 - cmake `3.21.3`
 - arm gnu toolchain `12.3.rel1`
 
-> **Note:** SysConfig and SimpleLink Wi-Fi Toolbox are installed by the SimpleLink Wi-Fi SDK installer and do not need to be installed separately.
+> **Note:** 
+>- The SimpleLink Wi-Fi SDK `10.10.01.08` is included as a git submodule and fetched via `checkout_submodules.py`
+>- SysConfig and SimpleLink Wi-Fi Toolbox can be either installed separately or can be installed with SimpleLink Wi-Fi SDK `10.10.01.08` installer.
 
 ---
 
@@ -22,14 +25,6 @@
 This guide covers the environment setup required to build and flash a Matter example to the TI CC35XX LaunchPad.
 
 The TI CC35XX currently supports the **lighting-app** example demonstrating the use of the OnOff cluster. The On/Off operations are emulated through the status of the red LED on the LaunchPad.
-
-**Key constraints:**
-- The CC35XX must be on the same target network as the Matter Controller.
-- The SSID, Password, and Security Type of the Access Point must be **hardcoded** into the example application (BLE-based commissioning is not yet supported).
-
-For build, flash, and commissioning instructions, refer to the [lighting-app README](../../../examples/lighting-app/ti/cc35xx/README.md).
-
-For detailed instructions on environment setup for building matter, refer to [Building guide](https://project-chip.github.io/connectedhomeip-doc/guides/BUILDING.html) from matter documentation. 
 
 ---
 
@@ -46,12 +41,12 @@ sudo apt-get install git gcc g++ pkg-config libssl-dev libdbus-1-dev libglib2.0-
 ## 2. Clone the TI Matter Repository
 
 ```bash
-# Clone the Matter repository with CC35XX support
+# Clone the TI fork of Matter repository
 git clone https://github.com/TexasInstruments/matter.git
 cd matter
 
-# Checkout the CC35XX Rev A Launchpad support branch
-git checkout matter-v1.5-ti
+# Checkout the latest available Matter v1.5 release tag with CC35xx support
+git checkout matter-v1.5-ti-1.1-ea.2
 
 # Pull platform submodules
 # The linux platform is included to support building the chip-tool and ota-provider examples on the host machine
@@ -68,11 +63,16 @@ source ./scripts/bootstrap.sh
 
 ## 3. Setup the SimpleLink Wi-Fi SDK
 
-1. Install cmake, arm gnu toolchain if not present.
+1. Install cmake and arm gnu toolchain if not present.
 
-2. Set appropriate paths to SYSCONFIG_TOOL, SIMPLELINK_WIFI_TOOLBOX_INSTALL_DIR, CMAKE, GCC_ARMCOMPILER in imports.mak file in SDK.
+2. Navigate to the SimpleLink Wi-Fi SDK submodule directory:
 
-3. Run below command to build library archives needed for building matter application.
+```bash
+cd third_party/ti_simplelink_sdk/repo_cc35xx
+```
+3. Set appropriate paths to SYSCONFIG_TOOL, SIMPLELINK_WIFI_TOOLBOX_INSTALL_DIR, CMAKE, GCC_ARMCOMPILER in **imports.mak** file in the SDK root.
+
+4. Run the following command to build library archives needed for building the Matter application:
 
 ```bash
 make GENERATOR=Ninja build-gcc
@@ -82,19 +82,11 @@ make GENERATOR=Ninja build-gcc
 
 ## Next Steps
 
-Refer to the [lighting-app README](../../../examples/lighting-app/ti/cc35xx/README.md) for:
-- Hardcoding Wi-Fi credentials
-- Building the example
+Once the environment is set up, refer to the [lighting-app README](../../../examples/lighting-app/ti/cc35xx/README.md) for:
+- Building the lighting example
 - Flashing the device
 - Commissioning and controlling the light with CHIP Tool
 
+For additional environment setup or build related documentation, see the [Matter Building Guide](https://project-chip.github.io/connectedhomeip-doc/guides/BUILDING.html).
+
 ---
-
-## Appendix: Version Reference
-
-| Component | Version |
-|---|---|
-| SimpleLink Wi-Fi SDK | `10.10.00.18` |
-| SysConfig | `1.26.3` |
-| SimpleLink Wi-Fi Toolbox | `4.1.16` |
-| JTAG interface | XDS110 |

@@ -100,7 +100,7 @@ SECTIONS
         *(.rodata._ZN4chip6CryptoL14spake2p_N_p256E)
         . = ALIGN(4);
         __data_end__ = .;
-    } > TCM_DRAM_NON_SECURE AT> FLASH_NON_SECURE    
+    } > DRAM_NON_SECURE AT> FLASH_NON_SECURE    
     
     .rodata : {
         *(.rodata)
@@ -138,24 +138,78 @@ SECTIONS
     } > FLASH_NON_SECURE
 
     
-    /* System memory section */
+    /* System memory section and specific BSS subsections in DRAM */
     .sysmem : {
         __SYSMEM_START__ = .;
         *(.sysmem)
         . = ALIGN(4);
         __SYSMEM_END__ = .;
     } > DRAM_NON_SECURE
-    
-    /* BSS sections */
+
+    /* Specific BSS subsections in DRAM (matching TI Clang layout) */
+    .bss.ucHeap : {
+        *(.bss.ucHeap)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.pool_acl_buf : {
+        *(.bss.pool_acl_buf)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.ble_l2cap_chan_mem : {
+        *(.bss.ble_l2cap_chan_mem)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.os_msys_1_data : {
+        *(.bss.os_msys_1_data)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    /* Large BSS subsections moved to DRAM to save TCM space (~57KB total) */
+    /* Note: In GCC these are .bss subsections, in TI Clang they are .common */
+    .bss.lwip_heap : {
+        *(.bss.ram_heap)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.lwip_PBUF_POOL : {
+        *(.bss.lwip_PBUF_POOL)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE    
+
+    .bss.app_data : {
+        *(.bss.app_CB)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.wifi_data : {
+        *(.bss.gCmeSsid)
+        *(.bss.gRsnDB)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    .bss.nv_buffer : {
+        *(.bss.tBuffer)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    /* Move COMMON symbols to DRAM to save TCM space */
+    .common : ALIGN(4) {
+        *(COMMON)
+        . = ALIGN(4);
+    } > DRAM_NON_SECURE
+
+    /* Main BSS section (non-common) in TCM_DRAM */
     .bss : {
         __bss_start__ = .;
         *(.shbss)
         *(.bss)
         *(.bss.*)
-        *(COMMON)
         . = ALIGN(4);
         __bss_end__ = .;
-    } > DRAM_NON_SECURE  
+    } > TCM_DRAM_NON_SECURE
     
     
     /* Stack section */

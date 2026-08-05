@@ -48,7 +48,6 @@ declare_args() {
     ti_simplelink_sdk_root =
         "${chip_root}/third_party/ti_simplelink_sdk/repo_cc35xx"
     ti_simplelink_wifi_toolbox_root = ""
-    ti_simplelink_wifi_sdk_root = ""
   } else if (ti_simplelink_device_family == "cc27xx") {
     ti_simplelink_sdk_root =
         "${chip_root}/third_party/ti_simplelink_sdk/repo_cc23xx_cc27xx"
@@ -110,8 +109,6 @@ assert(ti_sysconfig_root != "", "ti_sysconfig_root must be specified")
 if(ti_simplelink_device_family == "cc35xx"){
   assert(ti_simplelink_wifi_toolbox_root != "",
   "ti_simplelink_wifi_toolbox_root must be specified")
-  assert(ti_simplelink_wifi_sdk_root != "",
-  "ti_simplelink_wifi_sdk_root must be specified")
 }
 
 template("ti_sysconfig") {
@@ -139,7 +136,7 @@ template("ti_sysconfig") {
       rebase_path(ti_simplelink_wifi_toolbox_root +
                       "/.metadata/product.json"),
       "-o",
-      ".",
+      rebase_path(output_dir, ""),
       "--compiler",
       "gcc",
       "--board",
@@ -284,7 +281,7 @@ template("ti_sysconfig") {
         rebase_path(ti_simplelink_sdk_root + "/.metadata/product.json",
                     root_build_dir),
         "-o",
-        rebase_path(output_dir, root_build_dir),
+        rebase_path(output_dir, ""),
         "--compiler",
         "gcc",
         "--board",
@@ -308,7 +305,7 @@ template("ti_sysconfig") {
         rebase_path(ti_simplelink_sdk_root + "/.metadata/product.json",
                     root_build_dir),
         "-o",
-        rebase_path(output_dir, root_build_dir),
+        rebase_path(output_dir, ""),
         "--compiler",
         "gcc",
         "--device",
@@ -631,7 +628,6 @@ template("ti_simplelink_sdk") {
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/HwiPCC32XX_freertos.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/dpl/PowerCC32XX_freertos.c",
         "${ti_simplelink_sdk_root}/kernel/freertos/startup/startup_cc32xx_gcc.c",
-        "${freertos_root}/repo/portable/MemMang/heap_4.c",
       ]
     } else if (ti_simplelink_device_family == "cc27xx") {
       include_dirs += [

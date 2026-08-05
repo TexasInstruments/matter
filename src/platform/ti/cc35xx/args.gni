@@ -22,6 +22,7 @@ arm_platform_config =
 chip_device_platform = "cc35xx"
 chip_external_mbedtls = true
 chip_crypto = "psa"
+
 # Use single part AEAD since CC35xx supports multi-step streaming AEAD with below limiation:
 # SL CCM and GCM drivers only support adding full blocks of data 
 chip_crypto_psa_aead_single_part = true
@@ -31,3 +32,8 @@ lwip_platform = "cc35xx"
 chip_inet_config_enable_ipv4 = true
 
 chip_build_tests = false
+
+# AESCCMXXF3 hardware requires non-zero plaintext or AAD. Session resumption's
+# GenerateSigmaResumeMIC calls AES_CCM_encrypt with both empty, which the
+# hardware rejects. Disable session resumption to avoid this code path.
+chip_enable_session_resumption = false

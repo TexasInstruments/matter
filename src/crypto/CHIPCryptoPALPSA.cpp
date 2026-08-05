@@ -91,6 +91,7 @@ CHIP_ERROR AES_CCM_encrypt(const uint8_t * plaintext, size_t plaintext_length, c
     status = psa_aead_encrypt(key.As<psa_key_id_t>(), algorithm, nonce, nonce_length, aad, aad_length, plaintext, plaintext_length,
                               temp_buf, sizeof(temp_buf), &out_length);
 
+    LogPsaError(status);
     VerifyOrReturnError(status == PSA_SUCCESS && out_length == plaintext_length + tag_length, CHIP_ERROR_INTERNAL);
 
     if (plaintext_length)
@@ -213,6 +214,7 @@ CHIP_ERROR AES_CCM_decrypt(const uint8_t * ciphertext, size_t ciphertext_length,
     status = psa_aead_decrypt(key.As<psa_key_id_t>(), algorithm, nonce, nonce_length, aad, aad_length, temp_buf,
                               ciphertext_length + tag_length, plaintext, ciphertext_length, &out_length);
 
+    LogPsaError(status);
     VerifyOrReturnError(status == PSA_SUCCESS && out_length == ciphertext_length, CHIP_ERROR_INTERNAL);
 #else
     psa_aead_operation_t operation = PSA_AEAD_OPERATION_INIT;

@@ -38,7 +38,8 @@
 /* Use lwip provided errors as ti compiler is too granular*/
 #define LWIP_PROVIDE_ERRNO  1
 
-#define LWIP_RAND() ((u32_t)rand())
+uint32_t cc35xx_lwip_rand();
+#define LWIP_RAND() ((u32_t) cc35xx_lwip_rand())
 
 /* Setup Packing Macros */
 #define PACK_STRUCT_BEGIN
@@ -58,5 +59,22 @@ typedef struct sio_status_s sio_status_t;
 #define __sio_fd_t_defined
 
 typedef uint32_t sys_prot_t;
+
+// Place LwIP pools into their own subsections of .bss to make it easier to see
+// their sizes in the linker map file.
+extern uint8_t __attribute__((section(".bss.lwip_ND6_QUEUE"))) memp_memory_ND6_QUEUE_base[];
+extern uint8_t __attribute__((section(".bss.lwip_IP6_REASSDATA"))) memp_memory_IP6_REASSDATA_base[];
+extern uint8_t __attribute__((section(".bss.lwip_RAW_PCB"))) memp_memory_RAW_PCB_base[];
+extern uint8_t __attribute__((section(".bss.lwip_TCP_SEG"))) memp_memory_TCP_SEG_base[];
+extern uint8_t __attribute__((section(".bss.lwip_PBUF_POOL"))) memp_memory_PBUF_POOL_base[];
+extern uint8_t __attribute__((section(".bss.lwip_FRAG_PBUF"))) memp_memory_FRAG_PBUF_base[];
+extern uint8_t __attribute__((section(".bss.lwip_PBUF"))) memp_memory_PBUF_base[];
+extern uint8_t __attribute__((section(".bss.lwip_TCP_PCB_LISTEN"))) memp_memory_TCP_PCB_LISTEN_base[];
+extern uint8_t __attribute__((section(".bss.lwip_REASSDATA"))) memp_memory_REASSDATA_base[];
+extern uint8_t __attribute__((section(".bss.lwip_UDP_PCB"))) memp_memory_UDP_PCB_base[];
+extern uint8_t __attribute__((section(".bss.lwip_MLD6_GROUP"))) memp_memory_MLD6_GROUP_base[];
+extern uint8_t __attribute__((section(".bss.lwip_IGMP_GROUP"))) memp_memory_IGMP_GROUP_base[];
+extern uint8_t __attribute__((section(".bss.lwip_TCP_PCB"))) memp_memory_TCP_PCB_base[];
+extern uint8_t __attribute__((section(".bss.lwip_SYS_TIMEOUT"))) memp_memory_SYS_TIMEOUT_base[];
 
 #endif /* LWIP_ARCH_CC_H */

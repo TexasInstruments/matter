@@ -133,6 +133,15 @@ void network_stack_remove_if_ap();
 
 int update_arp(void* ip_addr);
 
+/*!
+    \brief Notify the CHIP stack that an IPv4 address has been assigned.
+
+    Called from status_callback when DHCP assigns an IP to the STA interface.
+    Implemented in ConnectivityManagerImpl.cpp; declared here so network_lwip.c
+    (a C translation unit) can call it without a C++ header dependency.
+*/
+void cc35xx_on_ip_acquired(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -404,48 +404,6 @@ template("ti_simplelink_executable") {
           ]
         }
       }
-      pw_python_action("${target_name}.ota") {
-        # For MCUBoot the image could be truncated to the actual executable
-        # size. The hex file is padded to the slot size.
-        public_deps = [ ":${simplelink_target_name}_header.bin" ]
-
-        script = "${chip_root}/src/app/ota_image_tool.py"
-        sources = [ "${root_out_dir}/${output_base_name}_header.bin" ]
-        outputs = [ "${root_out_dir}/${output_base_name}.ota" ]
-
-        args = [
-          "create",
-          rebase_path("${root_out_dir}/${output_base_name}_header.bin",
-                      root_build_dir),
-          rebase_path("${root_out_dir}/${output_base_name}.ota",
-                      root_build_dir),
-        ]
-
-        args += [
-          "-v",
-          matter_device_vid,
-          "-p",
-          matter_device_pid,
-          "-vn",
-          matter_software_ver,
-          "-vs",
-          matter_software_ver_str,
-        ]
-        if (defined(invoker.ota_digest)) {
-          args += [
-            "-da",
-            matter_ota_digest,
-          ]
-        } else {
-          args += [
-            "-da",
-            "sha256",
-          ]
-        }
-        if (defined(invoker.ota_args)) {
-          args += invoker.ota_args
-        }
-      }
     }
   } else if ((ti_simplelink_device_family == "cc13x4_26x4" ||
               ti_simplelink_device_family == "cc27xx") && custom_factory_data) {
@@ -528,15 +486,68 @@ template("ti_simplelink_executable") {
           [ "${root_out_dir}/vendor_image.sign.bin" ]
       args = [
         rebase_path("${ti_simplelink_sdk_build_root}/cc35xx/", root_build_dir),
-        rebase_path("${root_out_dir}", root_out_dir),
+        rebase_path("${root_out_dir}", root_build_dir),
         ti_simplelink_wifi_toolbox_root,
         rebase_path(
             "${target_gen_dir}/sysconfig",
-            root_out_dir),
-        rebase_path("${root_out_dir}/${output_base_name}.out", 
-                    root_out_dir),
-        ti_simplelink_wifi_sdk_root
+            root_build_dir),
+        rebase_path("${root_out_dir}/${output_base_name}.out",
+                    root_build_dir),
+        rebase_path(ti_simplelink_sdk_root, root_build_dir),
+        matter_software_ver,
       ]
+    }
+
+  }
+
+  if (chip_enable_ota_requestor) {
+    pw_python_action("${target_name}.ota") {
+      if (ti_simplelink_device_family == "cc13x4_26x4") {
+        # For MCUBoot the image could be truncated to the actual executable
+        # size. The hex file is padded to the slot size.
+        public_deps = [ ":${simplelink_target_name}_header.bin" ]
+        sources = [ "${root_out_dir}/${output_base_name}_header.bin" ]
+        input_image = rebase_path("${root_out_dir}/${output_base_name}_header.bin",
+                                  root_build_dir)
+      } else if (ti_simplelink_device_family == "cc35xx") {
+        public_deps = [ ":vendor_image.sign.bin" ]
+        sources = [ "${root_out_dir}/vendor_image.sign.bin" ]
+        input_image = rebase_path("${root_out_dir}/vendor_image.sign.bin",
+                                  root_build_dir)
+      }
+
+      script = "${chip_root}/src/app/ota_image_tool.py"
+      outputs = [ "${root_out_dir}/${output_base_name}.ota" ]
+
+      args = [
+        "create",
+        input_image,
+        rebase_path("${root_out_dir}/${output_base_name}.ota", root_build_dir),
+        "-v",
+        matter_device_vid,
+        "-p",
+        matter_device_pid,
+        "-vn",
+        matter_software_ver,
+        "-vs",
+        matter_software_ver_str,
+      ]
+
+      if (defined(invoker.ota_digest)) {
+        args += [
+          "-da",
+          matter_ota_digest,
+        ]
+      } else {
+        args += [
+          "-da",
+          "sha256",
+        ]
+      }
+
+      if (defined(invoker.ota_args)) {
+        args += invoker.ota_args
+      }
     }
   }
 
@@ -550,6 +561,13 @@ template("ti_simplelink_executable") {
           ":${simplelink_target_name}.out",
         ]
       }
+      if (ti_simplelink_device_family == "cc35xx") {
+        data_deps = [
+          ":vendor_image.sign.bin",
+          ":${target_name}.ota",
+          ":${simplelink_target_name}.out",
+        ]
+      }
     } else {
       # The executable is the final target.
       data_deps = [ ":${simplelink_target_name}.out" ]
@@ -557,8 +575,8 @@ template("ti_simplelink_executable") {
            ti_simplelink_device_family == "cc27xx") && custom_factory_data) {
         data_deps += [ ":${simplelink_target_name}-and-factory-data.hex" ]
       }
-      if(ti_simplelink_device_family == "cc35xx"){
-        data_deps += [":vendor_image.sign.bin"]
+      if (ti_simplelink_device_family == "cc35xx") {
+        data_deps += [ ":vendor_image.sign.bin" ]
       }
     }
 
